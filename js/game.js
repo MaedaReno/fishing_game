@@ -294,6 +294,8 @@ const game = {
     _renderOverlay() {
         if (this.screen === 'fishing') {
             fishing.render();
+        } else {
+            renderer.drawDock();
         }
     }
 };

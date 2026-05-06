@@ -17,6 +17,8 @@ class Renderer {
         this.particles = [];
         this.zoom = 1.0;
         this.targetZoom = 1.0;
+        this.panY = 0;
+        this.targetPanY = 0;
     }
 
     init() {
@@ -42,7 +44,7 @@ class Renderer {
         const waterY = this.h * this.waterLevel;
         return {
             x: this.w / 2 + (x - this.w / 2) * this.zoom,
-            y: waterY + (y - waterY) * this.zoom
+            y: this.panY + waterY + (y - waterY) * this.zoom
         };
     }
 
@@ -120,8 +122,10 @@ class Renderer {
 
         const waterY = h * this.waterLevel;
         this.zoom += (this.targetZoom - this.zoom) * 0.05;
+        this.panY += (this.targetPanY - this.panY) * 0.05;
 
         ctx.save();
+        ctx.translate(0, this.panY);
         ctx.translate(w / 2, waterY);
         ctx.scale(this.zoom, this.zoom);
         ctx.translate(-w / 2, -waterY);
@@ -134,18 +138,20 @@ class Renderer {
         this.drawParticles();
         
         ctx.restore();
-
-        this.drawDock();
     }
 
     /* ---- 空 ---- */
     drawSky(waterY) {
-        const { ctx, w } = this;
+        const { ctx, w, h } = this;
         let c1 = '#0d1b2a', c2 = '#1b2838';
         if (this.currentSpot) {
             c1 = this.currentSpot.bgGradient[0];
             c2 = this.currentSpot.bgGradient[1];
         }
+
+        ctx.fillStyle = c1;
+        ctx.fillRect(0, -h, w, h);
+
         const grad = ctx.createLinearGradient(0, 0, 0, waterY);
         grad.addColorStop(0, c1);
         grad.addColorStop(1, c2);

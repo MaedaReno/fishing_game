@@ -56,7 +56,7 @@ class FishingSystem {
         this.fightActive = false;
         this._spawnFishEntities();
         this._setupInput();
-        this.rodTipX = renderer.w * 0.95;
+        this.rodTipX = renderer.w * 0.85;
         this.rodTipY = renderer.h * 0.25;
     }
 
@@ -182,6 +182,7 @@ class FishingSystem {
         }
         document.getElementById('fishing-instruction').textContent = 'クリックまたはSpaceキーでキャスト！';
         renderer.targetZoom = 1.0;
+        renderer.targetPanY = 0.0;
     }
 
     /* =========== キャスト =========== */
@@ -189,9 +190,9 @@ class FishingSystem {
         const waterY = renderer.h * renderer.waterLevel;
         const power = Math.min(this.castPower, 100);
         
-        // 正面奥へキャスト
+        // 浮きと餌は画面中央奥へキャスト
         const castRatio = power / 100;
-        this.hookTargetX = renderer.w * 0.5 + (Math.random() - 0.5) * renderer.w * 0.1;
+        this.hookTargetX = renderer.w * 0.5; // 画面中央
         this.hookTargetY = waterY + 40 + (1 - castRatio) * (renderer.h * 0.35);
         this.hookX = renderer.w * 0.5;
         this.hookY = renderer.h * 0.8;
@@ -216,15 +217,22 @@ class FishingSystem {
             case 'idle':
             case 'caught':
                 renderer.targetZoom = 1.0;
+                renderer.targetPanY = 0.0;
                 break;
             case 'casting':
                 renderer.targetZoom = 1.0;
+                renderer.targetPanY = 0.0;
                 this._updateCasting(dt);
                 break;
             case 'waiting':
             case 'hit':
             case 'fighting':
-                renderer.targetZoom = 1.0 + (this.castPower / 100) * 0.4;
+                // パワーが大きいほどズーム（奥に飛ぶ演出）
+                renderer.targetZoom = 1.0 + (this.castPower / 100) * 1.5;
+                const waterY = renderer.h * renderer.waterLevel;
+                const zoomedY = waterY + (this.hookTargetY - waterY) * renderer.targetZoom;
+                renderer.targetPanY = renderer.h * 0.5 - zoomedY; // 浮きが画面中央になるようにパン
+                
                 if (this.state === 'waiting') this._updateWaiting(dt);
                 if (this.state === 'hit') this._updateHit(dt);
                 if (this.state === 'fighting') this._updateFighting(dt);
@@ -535,6 +543,7 @@ class FishingSystem {
         // --- ズーム空間（ワールド）での描画 ---
         ctx.save();
         const waterY = renderer.h * renderer.waterLevel;
+        ctx.translate(0, renderer.panY);
         ctx.translate(renderer.w / 2, waterY);
         ctx.scale(renderer.zoom, renderer.zoom);
         ctx.translate(-renderer.w / 2, -waterY);
@@ -560,6 +569,11 @@ class FishingSystem {
         
         ctx.restore();
         // --- ここまでワールド空間 ---
+
+        // 桟橋の描画（竿を振った後は表示しない＝idle, casting, caught時のみ）
+        if (this.state === 'idle' || this.state === 'casting' || this.state === 'caught') {
+            renderer.drawDock();
+        }
 
         // 釣り竿とフック（スクリーン空間）
         if (this.state === 'casting') {
