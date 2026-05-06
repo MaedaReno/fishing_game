@@ -47,6 +47,28 @@ const game = {
         document.getElementById('btn-sell').addEventListener('click', () => {
             this._sellFish();
         });
+
+        // ショップ関連
+        const btnShop = document.getElementById('btn-go-shop');
+        if (btnShop) btnShop.addEventListener('click', () => {
+            this.showScreen('shop');
+        });
+        const btnBackShop = document.getElementById('btn-back-spot-from-shop');
+        if (btnBackShop) btnBackShop.addEventListener('click', () => {
+            this.showScreen('spot');
+        });
+        const tabRods = document.getElementById('tab-rods');
+        const tabSkills = document.getElementById('tab-skills');
+        if (tabRods) tabRods.addEventListener('click', () => {
+            tabRods.classList.add('active');
+            tabSkills.classList.remove('active');
+            this._buildShop('rods');
+        });
+        if (tabSkills) tabSkills.addEventListener('click', () => {
+            tabSkills.classList.add('active');
+            tabRods.classList.remove('active');
+            this._buildShop('skills');
+        });
     },
 
     /* ---- 画面切り替え ---- */
@@ -57,6 +79,10 @@ const game = {
 
         if (id === 'spot') this._buildSpotList();
         if (id === 'collection') this._buildCollection();
+        if (id === 'shop') {
+            document.getElementById('shop-money-amount').textContent = `💰 ${this.money}`;
+            this._buildShop(document.getElementById('tab-rods').classList.contains('active') ? 'rods' : 'skills');
+        }
     },
 
     /* ---- 釣り場リスト構築 ---- */
@@ -169,6 +195,83 @@ const game = {
             grid.appendChild(item);
         });
     },
+
+    /* ---- ショップ ---- */
+    _buildShop(type) {
+        const grid = document.getElementById('shop-list');
+        grid.innerHTML = '';
+        
+        if (type === 'rods') {
+            RODS.forEach(rod => {
+                const owned = this.ownedRods.find(r => r.id === rod.id);
+                const equipped = this.equippedRod.id === rod.id;
+                const item = document.createElement('div');
+                item.className = 'shop-item' + (owned && !equipped ? ' owned' : '');
+                
+                let btnHtml = '';
+                if (equipped) {
+                    btnHtml = `<button class="btn-secondary btn-buy" disabled>装備中</button>`;
+                } else if (owned) {
+                    btnHtml = `<button class="btn-glow small btn-buy">装備する</button>`;
+                } else {
+                    btnHtml = `<button class="btn-glow small btn-buy" ${this.money < rod.cost ? 'disabled' : ''}>購入</button>`;
+                }
+
+                item.innerHTML = `
+                    <h3>${rod.name}</h3>
+                    <p>${rod.desc}</p>
+                    <div class="shop-item-cost">${rod.cost === 0 ? '無料' : `💰 ${rod.cost}`}</div>
+                    ${btnHtml}
+                `;
+
+                const btn = item.querySelector('.btn-buy');
+                if (btn && !btn.disabled) {
+                    btn.addEventListener('click', () => {
+                        if (owned) {
+                            this.equippedRod = rod;
+                        } else if (this.money >= rod.cost) {
+                            this.money -= rod.cost;
+                            this.ownedRods.push(rod);
+                            this.equippedRod = rod;
+                            document.getElementById('shop-money-amount').textContent = `💰 ${this.money}`;
+                        }
+                        this._buildShop('rods');
+                    });
+                }
+                grid.appendChild(item);
+            });
+        } else {
+            SKILLS.forEach(skill => {
+                const owned = this.learnedSkills.find(s => s.id === skill.id);
+                const item = document.createElement('div');
+                item.className = 'shop-item' + (owned ? ' owned' : '');
+                
+                let btnHtml = owned 
+                    ? `<button class="btn-secondary btn-buy" disabled>習得済み</button>`
+                    : `<button class="btn-glow small btn-buy" ${this.money < skill.cost ? 'disabled' : ''}>購入</button>`;
+
+                item.innerHTML = `
+                    <h3>${skill.name}</h3>
+                    <p>${skill.desc}</p>
+                    <div class="shop-item-cost">💰 ${skill.cost}</div>
+                    ${btnHtml}
+                `;
+
+                const btn = item.querySelector('.btn-buy');
+                if (btn && !btn.disabled) {
+                    btn.addEventListener('click', () => {
+                        if (this.money >= skill.cost) {
+                            this.money -= skill.cost;
+                            this.learnedSkills.push(skill);
+                            document.getElementById('shop-money-amount').textContent = `💰 ${this.money}`;
+                            this._buildShop('skills');
+                        }
+                    });
+                }
+                grid.appendChild(item);
+            });
+        }
+    }
 
     /* =========== ゲームループ =========== */
     _gameLoop() {

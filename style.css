@@ -390,6 +390,7 @@ html, body {
 .rarity-S { background: #9c27b0; color: #fff; }
 .rarity-SS { background: linear-gradient(135deg, #ff6f00, #ffd600); color: #fff; }
 .rarity-SSR { background: linear-gradient(135deg, #e91e63, #ff6f00, #ffd600, #00e676); color: #fff; animation: shimmer 2s linear infinite; }
+.rarity-unknown { background: #37474f; color: #b0bec5; border: 1px dashed #78909c; }
 
 .fight-gauge-wrap {
     margin-bottom: 16px;
@@ -606,10 +607,122 @@ html, body {
     100% { background-position: 200% center; }
 }
 
+/* ========== ショップ画面 ========== */
+.shop-content {
+    width: 90%;
+    max-width: 800px;
+    text-align: center;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: scaleIn 0.5s ease-out;
+}
+
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.shop-header .section-title {
+    margin-bottom: 0;
+}
+
+.shop-money {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--gold);
+    background: var(--glass-bg);
+    padding: 8px 16px;
+    border-radius: var(--border-radius-sm);
+    border: 1px solid var(--gold-dark);
+}
+
+.shop-tabs {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.shop-tab {
+    padding: 10px 24px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 50px;
+    cursor: pointer;
+    transition: var(--transition-smooth);
+}
+
+.shop-tab.active {
+    color: var(--ocean-deep);
+    background: var(--accent-teal);
+    border-color: var(--accent-teal);
+}
+
+.shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.shop-item {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--border-radius-sm);
+    padding: 20px;
+    text-align: center;
+    transition: var(--transition-smooth);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 200px;
+}
+
+.shop-item:hover {
+    border-color: var(--glass-border-hover);
+    transform: translateY(-4px);
+    background: rgba(100, 255, 218, 0.1);
+}
+
+.shop-item h3 {
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    color: var(--text-bright);
+}
+
+.shop-item p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+    flex-grow: 1;
+}
+
+.shop-item-cost {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 16px;
+}
+
+.shop-item .btn-buy {
+    width: 100%;
+    padding: 8px;
+}
+
+.shop-item.owned {
+    opacity: 0.6;
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
 /* レスポンシブ */
 @media (max-width: 600px) {
     #main-title { font-size: 2.8rem; }
     .spot-grid { grid-template-columns: 1fr; }
     .fight-panel { width: 95%; padding: 16px; }
     .result-actions { flex-direction: column; align-items: center; }
+    .shop-header { flex-direction: column; gap: 16px; }
 }

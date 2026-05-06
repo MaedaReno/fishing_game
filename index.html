@@ -36,7 +36,26 @@
                 <div class="spot-content">
                     <h2 class="section-title">釣り場を選択</h2>
                     <div id="spot-list" class="spot-grid"></div>
-                    <button id="btn-back-title" class="btn-secondary">タイトルに戻る</button>
+                    <div style="display: flex; gap: 16px; justify-content: center; margin-top: 16px;">
+                        <button id="btn-back-title" class="btn-secondary">タイトルに戻る</button>
+                        <button id="btn-go-shop" class="btn-glow small">ショップ</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ショップ画面 -->
+            <section id="screen-shop" class="screen">
+                <div class="shop-content">
+                    <div class="shop-header">
+                        <h2 class="section-title">ショップ</h2>
+                        <div class="shop-money">所持金: <span id="shop-money-amount">💰 0</span></div>
+                    </div>
+                    <div class="shop-tabs">
+                        <button id="tab-rods" class="shop-tab active">釣り竿</button>
+                        <button id="tab-skills" class="shop-tab">スキル</button>
+                    </div>
+                    <div id="shop-list" class="shop-grid"></div>
+                    <button id="btn-back-spot-from-shop" class="btn-secondary" style="margin-top: 32px;">戻る</button>
                 </div>
             </section>
 

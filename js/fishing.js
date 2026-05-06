@@ -56,8 +56,8 @@ class FishingSystem {
         this.fightActive = false;
         this._spawnFishEntities();
         this._setupInput();
-        this.rodTipX = renderer.w * 0.4;
-        this.rodTipY = renderer.h * renderer.waterLevel - 10;
+        this.rodTipX = renderer.w * 0.85;
+        this.rodTipY = renderer.h * 0.25;
     }
 
     /* ---- 釣り場を離れる ---- */
@@ -356,12 +356,12 @@ class FishingSystem {
         this.escapeTimer = 0;
         this.escapeThreshold = Math.max(3, 6 - diff * 0.5 + escapeBonus);
 
-        // UI更新
+        // UI更新（釣れるまで情報は隠す）
         document.getElementById('fight-ui').classList.remove('hidden');
-        document.getElementById('fight-fish-name').textContent = this.fightFish.name;
+        document.getElementById('fight-fish-name').textContent = '???';
         const rarityBadge = document.getElementById('fight-rarity');
-        rarityBadge.textContent = this.fightFish.rarity;
-        rarityBadge.className = `rarity-badge rarity-${this.fightFish.rarity}`;
+        rarityBadge.textContent = '?';
+        rarityBadge.className = `rarity-badge rarity-unknown`;
         document.getElementById('fishing-instruction').textContent = '';
         document.getElementById('fishing-instruction').style.color = '';
         document.getElementById('fishing-instruction').style.fontSize = '';
