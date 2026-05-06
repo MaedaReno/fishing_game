@@ -433,8 +433,8 @@ class Renderer {
         const waterY = h * this.waterLevel;
         const rc = rodColor || '#8d6e63';
 
-        // === 竿の基点（画面中央下から伸びる） ===
-        const baseX = w * 0.45;
+        // === 竿の基点（画面右下から伸びる） ===
+        const baseX = w * 0.75;
         const baseY = h + 20;
         
         // 先端

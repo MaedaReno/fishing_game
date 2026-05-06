@@ -56,7 +56,7 @@ class FishingSystem {
         this.fightActive = false;
         this._spawnFishEntities();
         this._setupInput();
-        this.rodTipX = renderer.w * 0.85;
+        this.rodTipX = renderer.w * 0.95;
         this.rodTipY = renderer.h * 0.25;
     }
 
