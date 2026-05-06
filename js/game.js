@@ -271,7 +271,7 @@ const game = {
                 grid.appendChild(item);
             });
         }
-    }
+    },
 
     /* =========== ゲームループ =========== */
     _gameLoop() {
