@@ -433,17 +433,28 @@ class Renderer {
         const waterY = h * this.waterLevel;
         const rc = rodColor || '#8d6e63';
 
-        // === 竿の基点（右手で持っている想定、画面右下から伸びる） ===
-        const baseX = w * 0.72;
-        const baseY = h + 30;
-        // 中間ポイント（遠近法で竿が前方に伸びる）
-        const mid1X = w * 0.58;
-        const mid1Y = h * 0.68 + tension * 15;
-        const mid2X = w * 0.48;
-        const mid2Y = h * 0.50 + tension * 25;
+        // === 竿の基点（画面中央下から伸びる） ===
+        const baseX = w * 0.45;
+        const baseY = h + 20;
+        
         // 先端
         const tipX = rodTipX;
         const tipY = rodTipY + tension * 10;
+
+        // テンションによる曲がり
+        const bend = tension * 50;
+
+        // 曲線上の点を計算する関数
+        const getRodPoint = (t) => {
+            const straightX = baseX + (tipX - baseX) * t;
+            const straightY = baseY + (tipY - baseY) * t;
+            const sag = Math.sin(t * Math.PI) * bend;
+            return { x: straightX, y: straightY + sag };
+        };
+
+        const ptGrip = getRodPoint(0.25);
+        const ptMid = getRodPoint(0.65);
+        const ptTip = getRodPoint(1.0);
 
         ctx.save();
         ctx.lineCap = 'round';
@@ -456,13 +467,13 @@ class Renderer {
             ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.moveTo(baseX, waterY + 5);
-            ctx.quadraticCurveTo(mid2X, waterY + 8, tipX, waterY + 3);
+            ctx.quadraticCurveTo(ptMid.x, waterY + 8, tipX, waterY + 3);
             ctx.stroke();
             ctx.restore();
         }
 
         // --- グリップ（コルク風、太い） ---
-        const gripGrad = ctx.createLinearGradient(baseX, baseY, mid1X, mid1Y);
+        const gripGrad = ctx.createLinearGradient(baseX, baseY, ptGrip.x, ptGrip.y);
         gripGrad.addColorStop(0, '#d7ccc8');
         gripGrad.addColorStop(0.5, '#bcaaa4');
         gripGrad.addColorStop(1, '#8d6e63');
@@ -470,7 +481,7 @@ class Renderer {
         ctx.lineWidth = 16;
         ctx.beginPath();
         ctx.moveTo(baseX, baseY);
-        ctx.lineTo(mid1X + 15, mid1Y + 40);
+        ctx.lineTo(ptGrip.x, ptGrip.y);
         ctx.stroke();
 
         // グリップ模様（横線）
@@ -479,86 +490,71 @@ class Renderer {
         ctx.setLineDash([2, 6]);
         ctx.beginPath();
         ctx.moveTo(baseX, baseY);
-        ctx.lineTo(mid1X + 15, mid1Y + 40);
+        ctx.lineTo(ptGrip.x, ptGrip.y);
         ctx.stroke();
         ctx.setLineDash([]);
 
         // --- リール（立体的） ---
-        const reelX = mid1X + 8;
-        const reelY = mid1Y + 30;
+        const reelX = baseX + (ptGrip.x - baseX) * 0.6;
+        const reelY = baseY + (ptGrip.y - baseY) * 0.6 + 5;
         // リール本体（楕円）
         ctx.fillStyle = '#455a64';
         ctx.beginPath();
-        ctx.ellipse(reelX + 8, reelY, 12, 8, 0.3, 0, Math.PI * 2);
+        ctx.ellipse(reelX, reelY, 12, 8, 0.3, 0, Math.PI * 2);
         ctx.fill();
         // リールハイライト
         ctx.fillStyle = 'rgba(255,255,255,0.2)';
         ctx.beginPath();
-        ctx.ellipse(reelX + 5, reelY - 3, 6, 3, 0.3, 0, Math.PI * 2);
+        ctx.ellipse(reelX - 3, reelY - 3, 6, 3, 0.3, 0, Math.PI * 2);
         ctx.fill();
         // リールハンドル
         ctx.strokeStyle = '#78909c';
         ctx.lineWidth = 2;
         const handleAngle = this.time * 3;
         ctx.beginPath();
-        ctx.moveTo(reelX + 8, reelY);
-        ctx.lineTo(reelX + 8 + Math.cos(handleAngle) * 10, reelY + Math.sin(handleAngle) * 5);
+        ctx.moveTo(reelX, reelY);
+        ctx.lineTo(reelX + Math.cos(handleAngle) * 10, reelY + Math.sin(handleAngle) * 5);
         ctx.stroke();
         ctx.fillStyle = '#90a4ae';
         ctx.beginPath();
-        ctx.arc(reelX + 8 + Math.cos(handleAngle) * 10, reelY + Math.sin(handleAngle) * 5, 3, 0, Math.PI * 2);
+        ctx.arc(reelX + Math.cos(handleAngle) * 10, reelY + Math.sin(handleAngle) * 5, 3, 0, Math.PI * 2);
         ctx.fill();
 
         // --- ロッド本体（段階的に細く、立体シェーディング） ---
         // セグメント1（太い部分）
-        const seg1Grad = ctx.createLinearGradient(mid1X + 15, mid1Y + 40, mid2X, mid2Y);
+        const seg1Grad = ctx.createLinearGradient(ptGrip.x, ptGrip.y, ptMid.x, ptMid.y);
         seg1Grad.addColorStop(0, rc);
         seg1Grad.addColorStop(0.5, this._lightenColor(rc, 30));
         seg1Grad.addColorStop(1, rc);
         ctx.strokeStyle = seg1Grad;
         ctx.lineWidth = 8;
         ctx.beginPath();
-        ctx.moveTo(mid1X + 15, mid1Y + 40);
+        ctx.moveTo(ptGrip.x, ptGrip.y);
         ctx.quadraticCurveTo(
-            (mid1X + 15 + mid2X) / 2 + tension * 10,
-            (mid1Y + 40 + mid2Y) / 2 + tension * 20,
-            mid2X, mid2Y
+            getRodPoint(0.45).x, getRodPoint(0.45).y,
+            ptMid.x, ptMid.y
         );
         ctx.stroke();
 
-        // セグメント2（中間）
+        // セグメント2（中間〜先端）
         ctx.strokeStyle = this._lightenColor(rc, 15);
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(mid2X, mid2Y);
+        ctx.moveTo(ptMid.x, ptMid.y);
         ctx.quadraticCurveTo(
-            (mid2X + tipX) / 2,
-            (mid2Y + tipY) / 2 + tension * 15,
-            (mid2X + tipX * 2) / 3, (mid2Y + tipY * 2) / 3
+            getRodPoint(0.85).x, getRodPoint(0.85).y,
+            ptTip.x, ptTip.y
         );
-        ctx.stroke();
-
-        // セグメント3（先端、非常に細い）
-        ctx.strokeStyle = this._lightenColor(rc, 40);
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo((mid2X + tipX * 2) / 3, (mid2Y + tipY * 2) / 3);
-        ctx.lineTo(tipX, tipY);
         ctx.stroke();
 
         // --- ガイドリング --- 
-        const segments = [
-            { t: 0.25, fromX: mid1X + 15, fromY: mid1Y + 40, toX: mid2X, toY: mid2Y },
-            { t: 0.6, fromX: mid2X, fromY: mid2Y, toX: tipX, toY: tipY },
-            { t: 0.85, fromX: mid2X, fromY: mid2Y, toX: tipX, toY: tipY }
-        ];
-        segments.forEach(s => {
-            const gx = s.fromX + (s.toX - s.fromX) * s.t;
-            const gy = s.fromY + (s.toY - s.fromY) * s.t;
+        const segments = [0.45, 0.65, 0.85];
+        segments.forEach(t => {
+            const pt = getRodPoint(t);
             ctx.strokeStyle = '#b0bec5';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
-            ctx.arc(gx, gy, 3, 0, Math.PI * 2);
+            ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
             ctx.stroke();
         });
 
