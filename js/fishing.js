@@ -39,6 +39,8 @@ class FishingSystem {
         this.fightCursorPos = 50;
         this.fightZoneWidth = 20;
         this.fightActive = false;
+        this.escapeTimer = 0;        // ゲージ0継続タイマー
+        this.escapeThreshold = 5;    // 逃走までの秒数（基本値）
 
         // 入力
         this.mouseX = 0;
@@ -322,9 +324,18 @@ class FishingSystem {
         this.fightCursorPos = 50;
         this.fightActive = true;
 
-        // 難易度に応じた設定（低レアは広いゾーン＆遅い、高レアは狭い＆速い）
-        const diff = this.fightFish.difficulty;
-        this.fightZoneWidth = Math.max(10, 40 - diff * 6);
+        // 装備ボーナスの取得
+        const rod = game.equippedRod || RODS[0];
+        const skills = game.learnedSkills || [];
+        const diffMod = rod.diffMod;
+        const zoneMod = skills.find(s => s.id === 'wideview') ? 1.2 : 1;
+        const escapeBonus = skills.find(s => s.id === 'patience') ? 3 : 0;
+
+        // 難易度に応じた設定（装備ボーナス適用）
+        const diff = this.fightFish.difficulty * diffMod;
+        this.fightZoneWidth = Math.max(10, (40 - diff * 6) * zoneMod);
+        this.escapeTimer = 0;
+        this.escapeThreshold = Math.max(3, 6 - diff * 0.5 + escapeBonus);
 
         // UI更新
         document.getElementById('fight-ui').classList.remove('hidden');
@@ -341,7 +352,11 @@ class FishingSystem {
     _updateFighting(dt) {
         if (!this.fightActive) return;
 
-        const diff = this.fightFish.difficulty;
+        const rod = game.equippedRod || RODS[0];
+        const skills = game.learnedSkills || [];
+        const diff = this.fightFish.difficulty * rod.diffMod;
+        const fillMod = skills.find(s => s.id === 'quickfill') ? 1.4 : 1;
+        const drainMod = skills.find(s => s.id === 'steady') ? 0.7 : 1;
 
         // ゾーンの移動速度（低レアは非常に遅い、高レアは速い）
         const speed = (0.5 + diff * 1.2) * 40;
@@ -379,13 +394,21 @@ class FishingSystem {
         const zoneRight = this.fightZonePos + this.fightZoneWidth / 2;
         const inZone = this.fightCursorPos >= zoneLeft && this.fightCursorPos <= zoneRight;
 
-        const fillRate = 60 / (diff * diff + 0.5);  // C: ~86, SSR: ~2.4
-        const drainRate = 5 * diff * diff;            // C: ~2.5, SSR: ~125
+        const fillRate = (60 / (diff * diff + 0.5)) * fillMod;
+        const drainRate = (5 * diff * diff) * drainMod;
 
         if (inZone) {
             this.fightGauge = Math.min(100, this.fightGauge + fillRate * dt);
+            this.escapeTimer = Math.max(0, this.escapeTimer - dt * 0.5);
         } else {
             this.fightGauge = Math.max(0, this.fightGauge - drainRate * dt);
+        }
+
+        // ゲージが0のまま継続すると魚が逃走
+        if (this.fightGauge <= 0) {
+            this.escapeTimer += dt;
+        } else {
+            this.escapeTimer = Math.max(0, this.escapeTimer - dt * 0.3);
         }
 
         // UI更新
@@ -405,7 +428,24 @@ class FishingSystem {
             fillEl.style.background = '';
         }
 
-        // 成功 or 失敗
+        // 逃走判定
+        if (this.escapeTimer >= this.escapeThreshold) {
+            this._fishEscaped('魚に逃げられた！');
+            return;
+        }
+
+        // 逃走警告の表示
+        const escapeRatio = this.escapeTimer / this.escapeThreshold;
+        const hintEl = document.querySelector('.fight-hint');
+        if (escapeRatio > 0.5) {
+            hintEl.textContent = `⚠️ 魚が暴れている！ (${Math.ceil(this.escapeThreshold - this.escapeTimer)}秒)`;
+            hintEl.style.color = escapeRatio > 0.8 ? '#ff5252' : '#ff9800';
+        } else {
+            hintEl.textContent = '← → キーまたはマウスでバーを操作';
+            hintEl.style.color = '';
+        }
+
+        // 成功
         if (this.fightGauge >= 100) {
             this._fishCaught();
         }
@@ -501,7 +541,8 @@ class FishingSystem {
 
         if (this.state === 'waiting' || this.state === 'hit' || this.state === 'fighting') {
             const tension = this.state === 'fighting' ? 0.5 + Math.sin(renderer.time * 5) * 0.3 : 0;
-            renderer.drawRod(this.rodTipX, this.rodTipY, this.hookX, this.hookY, tension);
+            const rodColor = (game.equippedRod || RODS[0]).color;
+            renderer.drawRod(this.rodTipX, this.rodTipY, this.hookX, this.hookY, tension, rodColor);
         }
 
         // ファイト中は対象の魚を実体で描画

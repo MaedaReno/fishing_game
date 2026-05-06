@@ -7,12 +7,15 @@ const fishing = new FishingSystem();
 
 const game = {
     screen: 'title',
-    money: 0,
+    money: 1000,
     catches: 0,
     allies: [],
-    collection: {},  // id -> true
+    collection: {},
     currentSpot: null,
     lastTime: 0,
+    equippedRod: RODS[0],
+    ownedRods: [RODS[0]],
+    learnedSkills: [],
 
     /* ---- 初期化 ---- */
     init() {

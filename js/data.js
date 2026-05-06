@@ -213,3 +213,17 @@ const FISHING_SPOTS = [
         waterColor: "rgba(13, 13, 59, 0.7)"
     }
 ];
+
+const RODS = [
+    { id: "bamboo", name: "竹竿", desc: "初心者用の竹の竿", diffMod: 1.0, cost: 0, color: "#a1887f" },
+    { id: "carbon", name: "カーボンロッド", desc: "軽量で扱いやすい", diffMod: 0.8, cost: 2000, color: "#546e7a" },
+    { id: "titanium", name: "チタンロッド", desc: "高い強度と感度", diffMod: 0.6, cost: 8000, color: "#90a4ae" },
+    { id: "legend", name: "伝説の竿", desc: "伝説のアングラーが遺した竿", diffMod: 0.4, cost: 30000, color: "#ffd700" }
+];
+
+const SKILLS = [
+    { id: "steady", name: "安定の心", desc: "ゲージ減少速度-30%", cost: 1500, effect: { drainMod: 0.7 } },
+    { id: "quickfill", name: "高速リール", desc: "ゲージ増加速度+40%", cost: 3000, effect: { fillMod: 1.4 } },
+    { id: "patience", name: "忍耐の極意", desc: "逃走猶予時間+3秒", cost: 5000, effect: { escapeTimeMod: 3 } },
+    { id: "wideview", name: "広域探知", desc: "ゾーン幅+20%", cost: 10000, effect: { zoneMod: 1.2 } }
+];

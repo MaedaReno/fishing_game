@@ -408,115 +408,229 @@ class Renderer {
         ctx.restore();
     }
 
-    /* ---- 釣り竿と糸（一人称視点：手前から奥へ） ---- */
-    drawRod(rodTipX, rodTipY, hookX, hookY, tension) {
+    /* ---- 釣り竿と糸（立体的な一人称視点） ---- */
+    drawRod(rodTipX, rodTipY, hookX, hookY, tension, rodColor) {
         const { ctx, w, h } = this;
         const waterY = h * this.waterLevel;
+        const rc = rodColor || '#8d6e63';
 
-        // 竿の根元は画面下部中央やや右（プレイヤーの手の位置）
-        const rodBaseX = w * 0.55;
-        const rodBaseY = h + 20;
-        // 竿の中間点（遠近法で斜め上方へ）
-        const midX = w * 0.50;
-        const midY = h * 0.55 + tension * 30;
+        // === 竿の基点（右手で持っている想定、画面右下から伸びる） ===
+        const baseX = w * 0.72;
+        const baseY = h + 30;
+        // 中間ポイント（遠近法で竿が前方に伸びる）
+        const mid1X = w * 0.58;
+        const mid1Y = h * 0.68 + tension * 15;
+        const mid2X = w * 0.48;
+        const mid2Y = h * 0.50 + tension * 25;
+        // 先端
+        const tipX = rodTipX;
+        const tipY = rodTipY + tension * 10;
 
-        // 竿本体（太い→細い、2セグメント）
         ctx.save();
         ctx.lineCap = 'round';
 
-        // グリップ部分（太い）
-        ctx.strokeStyle = '#3e2723';
-        ctx.lineWidth = 12;
+        // --- 竿の影（水面に映る） ---
+        if (tipY < waterY + 30) {
+            ctx.save();
+            ctx.globalAlpha = 0.08;
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(baseX, waterY + 5);
+            ctx.quadraticCurveTo(mid2X, waterY + 8, tipX, waterY + 3);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // --- グリップ（コルク風、太い） ---
+        const gripGrad = ctx.createLinearGradient(baseX, baseY, mid1X, mid1Y);
+        gripGrad.addColorStop(0, '#d7ccc8');
+        gripGrad.addColorStop(0.5, '#bcaaa4');
+        gripGrad.addColorStop(1, '#8d6e63');
+        ctx.strokeStyle = gripGrad;
+        ctx.lineWidth = 16;
         ctx.beginPath();
-        ctx.moveTo(rodBaseX, rodBaseY);
-        ctx.lineTo(rodBaseX - 10, h * 0.78);
+        ctx.moveTo(baseX, baseY);
+        ctx.lineTo(mid1X + 15, mid1Y + 40);
         ctx.stroke();
 
-        // リール
-        ctx.fillStyle = '#78909c';
+        // グリップ模様（横線）
+        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        ctx.lineWidth = 14;
+        ctx.setLineDash([2, 6]);
         ctx.beginPath();
-        ctx.arc(rodBaseX - 8, h * 0.80, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#b0bec5';
-        ctx.beginPath();
-        ctx.arc(rodBaseX - 8, h * 0.80, 4, 0, Math.PI * 2);
-        ctx.fill();
-
-        // ロッド本体（カーブ、テンションで曲がる）
-        const bendMidX = midX + (rodTipX - midX) * 0.4;
-        const bendMidY = midY + tension * 40;
-        ctx.strokeStyle = '#5d4037';
-        ctx.lineWidth = 7;
-        ctx.beginPath();
-        ctx.moveTo(rodBaseX - 10, h * 0.78);
-        ctx.quadraticCurveTo(bendMidX + 20, bendMidY + 30, midX, midY);
+        ctx.moveTo(baseX, baseY);
+        ctx.lineTo(mid1X + 15, mid1Y + 40);
         ctx.stroke();
+        ctx.setLineDash([]);
 
-        // ロッド先端部（細い）
-        ctx.strokeStyle = '#8d6e63';
-        ctx.lineWidth = 3;
+        // --- リール（立体的） ---
+        const reelX = mid1X + 8;
+        const reelY = mid1Y + 30;
+        // リール本体（楕円）
+        ctx.fillStyle = '#455a64';
         ctx.beginPath();
-        ctx.moveTo(midX, midY);
+        ctx.ellipse(reelX + 8, reelY, 12, 8, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        // リールハイライト
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(reelX + 5, reelY - 3, 6, 3, 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        // リールハンドル
+        ctx.strokeStyle = '#78909c';
+        ctx.lineWidth = 2;
+        const handleAngle = this.time * 3;
+        ctx.beginPath();
+        ctx.moveTo(reelX + 8, reelY);
+        ctx.lineTo(reelX + 8 + Math.cos(handleAngle) * 10, reelY + Math.sin(handleAngle) * 5);
+        ctx.stroke();
+        ctx.fillStyle = '#90a4ae';
+        ctx.beginPath();
+        ctx.arc(reelX + 8 + Math.cos(handleAngle) * 10, reelY + Math.sin(handleAngle) * 5, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // --- ロッド本体（段階的に細く、立体シェーディング） ---
+        // セグメント1（太い部分）
+        const seg1Grad = ctx.createLinearGradient(mid1X + 15, mid1Y + 40, mid2X, mid2Y);
+        seg1Grad.addColorStop(0, rc);
+        seg1Grad.addColorStop(0.5, this._lightenColor(rc, 30));
+        seg1Grad.addColorStop(1, rc);
+        ctx.strokeStyle = seg1Grad;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(mid1X + 15, mid1Y + 40);
         ctx.quadraticCurveTo(
-            rodTipX + (midX - rodTipX) * 0.3,
-            rodTipY + tension * 25,
-            rodTipX, rodTipY
+            (mid1X + 15 + mid2X) / 2 + tension * 10,
+            (mid1Y + 40 + mid2Y) / 2 + tension * 20,
+            mid2X, mid2Y
         );
         ctx.stroke();
 
-        // ガイドリング（竿上の小さな輪）
-        const guides = [0.3, 0.55, 0.8];
-        guides.forEach(t => {
-            const gx = rodBaseX - 10 + (rodTipX - rodBaseX + 10) * t;
-            const gy = h * 0.78 + (rodTipY - h * 0.78) * t + tension * 15 * t;
-            ctx.strokeStyle = '#90a4ae';
+        // セグメント2（中間）
+        ctx.strokeStyle = this._lightenColor(rc, 15);
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(mid2X, mid2Y);
+        ctx.quadraticCurveTo(
+            (mid2X + tipX) / 2,
+            (mid2Y + tipY) / 2 + tension * 15,
+            (mid2X + tipX * 2) / 3, (mid2Y + tipY * 2) / 3
+        );
+        ctx.stroke();
+
+        // セグメント3（先端、非常に細い）
+        ctx.strokeStyle = this._lightenColor(rc, 40);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo((mid2X + tipX * 2) / 3, (mid2Y + tipY * 2) / 3);
+        ctx.lineTo(tipX, tipY);
+        ctx.stroke();
+
+        // --- ガイドリング --- 
+        const segments = [
+            { t: 0.25, fromX: mid1X + 15, fromY: mid1Y + 40, toX: mid2X, toY: mid2Y },
+            { t: 0.6, fromX: mid2X, fromY: mid2Y, toX: tipX, toY: tipY },
+            { t: 0.85, fromX: mid2X, fromY: mid2Y, toX: tipX, toY: tipY }
+        ];
+        segments.forEach(s => {
+            const gx = s.fromX + (s.toX - s.fromX) * s.t;
+            const gy = s.fromY + (s.toY - s.fromY) * s.t;
+            ctx.strokeStyle = '#b0bec5';
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.arc(gx, gy, 3, 0, Math.PI * 2);
             ctx.stroke();
         });
 
-        // 釣り糸（先端からフックへ）
-        ctx.strokeStyle = 'rgba(220, 240, 255, 0.5)';
+        // === 釣り糸（カテナリー曲線） ===
+        ctx.strokeStyle = 'rgba(230, 245, 255, 0.45)';
         ctx.lineWidth = 1;
-        ctx.setLineDash([]);
         ctx.beginPath();
-        ctx.moveTo(rodTipX, rodTipY);
-        // 糸のたるみ
-        const sagX = (rodTipX + hookX) / 2;
-        const sagY = Math.max(rodTipY, hookY) + 20 - tension * 15;
-        ctx.quadraticCurveTo(sagX, sagY, hookX, hookY);
+        ctx.moveTo(tipX, tipY);
+        const steps = 20;
+        for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const lx = tipX + (hookX - tipX) * t;
+            // カテナリー（たるみ）の計算
+            const sag = (1 - tension * 0.8) * 30 * Math.sin(t * Math.PI);
+            const ly = tipY + (hookY - tipY) * t + sag;
+            ctx.lineTo(lx, ly);
+        }
         ctx.stroke();
 
-        // 浮き（水面）
+        // === 浮き（3Dシェーディング） ===
         if (hookY > waterY) {
-            const bobSize = 6;
-            ctx.fillStyle = '#ff1744';
+            const bobX = hookX;
+            const bobY = waterY;
+            const bobR = 7;
+            // 水面での波紋
+            ctx.save();
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.ellipse(hookX, waterY, bobSize, bobSize * 0.4, 0, 0, Math.PI);
-            ctx.fill();
+            ctx.ellipse(bobX, bobY + 2, bobR * 2.5, bobR * 0.5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+            // 浮きの下半分（白）
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
-            ctx.ellipse(hookX, waterY, bobSize, bobSize * 0.4, 0, Math.PI, Math.PI * 2);
+            ctx.ellipse(bobX, bobY + 1, bobR, bobR * 0.55, 0, 0, Math.PI);
             ctx.fill();
+            // 浮きの上半分（赤、立体グラデーション）
+            const bobGrad = ctx.createRadialGradient(bobX - 2, bobY - 2, 1, bobX, bobY, bobR);
+            bobGrad.addColorStop(0, '#ff5252');
+            bobGrad.addColorStop(0.7, '#d32f2f');
+            bobGrad.addColorStop(1, '#b71c1c');
+            ctx.fillStyle = bobGrad;
+            ctx.beginPath();
+            ctx.ellipse(bobX, bobY - 1, bobR, bobR * 0.55, 0, Math.PI, Math.PI * 2);
+            ctx.fill();
+            // ハイライト
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            ctx.beginPath();
+            ctx.ellipse(bobX - 2, bobY - 3, 3, 2, -0.3, 0, Math.PI * 2);
+            ctx.fill();
+            // 浮きの棒
+            ctx.strokeStyle = '#5d4037';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(bobX, bobY - bobR * 0.5);
+            ctx.lineTo(bobX, bobY - bobR * 1.8);
+            ctx.stroke();
         }
 
-        // ルアー/フック（水中で光る）
-        ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 10;
+        // === ルアー/フック（水中） ===
+        ctx.shadowColor = 'rgba(255, 215, 0, 0.6)';
+        ctx.shadowBlur = 12;
         ctx.fillStyle = '#ffd700';
         ctx.beginPath();
         ctx.arc(hookX, hookY, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
-        // フックの形
+        // フック
         ctx.strokeStyle = '#bdbdbd';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(hookX, hookY + 4, 4, Math.PI * 0.8, Math.PI * 2.2);
+        ctx.arc(hookX + 1, hookY + 5, 4, Math.PI * 0.7, Math.PI * 2.3);
+        ctx.stroke();
+        // 返し
+        ctx.beginPath();
+        ctx.moveTo(hookX + 5, hookY + 4);
+        ctx.lineTo(hookX + 3, hookY + 2);
         ctx.stroke();
 
         ctx.restore();
+    }
+
+    /* ---- 色を明るくするヘルパー ---- */
+    _lightenColor(hex, amount) {
+        const num = parseInt(hex.replace('#', ''), 16);
+        const r = Math.min(255, (num >> 16) + amount);
+        const g = Math.min(255, ((num >> 8) & 0xff) + amount);
+        const b = Math.min(255, (num & 0xff) + amount);
+        return `rgb(${r},${g},${b})`;
     }
 
     /* ---- テキスト描画 ---- */
