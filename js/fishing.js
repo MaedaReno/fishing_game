@@ -54,8 +54,8 @@ class FishingSystem {
         this.fightActive = false;
         this._spawnFishEntities();
         this._setupInput();
-        this.rodTipX = renderer.w * 0.7;
-        this.rodTipY = renderer.h * renderer.waterLevel - 20;
+        this.rodTipX = renderer.w * 0.4;
+        this.rodTipY = renderer.h * renderer.waterLevel - 10;
     }
 
     /* ---- 釣り場を離れる ---- */
@@ -172,11 +172,12 @@ class FishingSystem {
     _releaseCast() {
         const waterY = renderer.h * renderer.waterLevel;
         const power = Math.min(this.castPower, 100);
-        const dist = (power / 100) * renderer.w * 0.6;
-        this.hookTargetX = this.rodTipX - dist;
-        this.hookTargetY = waterY + 40 + (power / 100) * (renderer.h * 0.4);
-        this.hookX = this.rodTipX;
-        this.hookY = this.rodTipY;
+        // 手前から奥へキャスト（画面中央付近に着水）
+        const castRatio = power / 100;
+        this.hookTargetX = renderer.w * 0.3 + (Math.random() - 0.5) * renderer.w * 0.3;
+        this.hookTargetY = waterY + 30 + castRatio * (renderer.h * 0.35);
+        this.hookX = renderer.w * 0.5;
+        this.hookY = renderer.h * 0.75;
         this.hookLanded = false;
         this.state = 'waiting';
         this.waitTimer = 0;
@@ -321,9 +322,9 @@ class FishingSystem {
         this.fightCursorPos = 50;
         this.fightActive = true;
 
-        // 難易度に応じた設定
+        // 難易度に応じた設定（低レアは広いゾーン＆遅い、高レアは狭い＆速い）
         const diff = this.fightFish.difficulty;
-        this.fightZoneWidth = Math.max(8, 25 - diff * 3);
+        this.fightZoneWidth = Math.max(10, 40 - diff * 6);
 
         // UI更新
         document.getElementById('fight-ui').classList.remove('hidden');
@@ -342,12 +343,12 @@ class FishingSystem {
 
         const diff = this.fightFish.difficulty;
 
-        // ゾーンの移動（サイン波 + ランダム変動）
-        const speed = (1.5 + diff * 0.8) * 50;
+        // ゾーンの移動速度（低レアは非常に遅い、高レアは速い）
+        const speed = (0.5 + diff * 1.2) * 40;
         this.fightZonePos += this.fightZoneDir * speed * dt;
 
-        // ランダムな方向転換
-        if (Math.random() < 0.02 * diff) {
+        // ランダムな方向転換（低レアはほぼ方向転換しない）
+        if (Math.random() < 0.005 * diff * diff) {
             this.fightZoneDir *= -1;
         }
         if (this.fightZonePos > 95 - this.fightZoneWidth / 2) {
@@ -359,10 +360,10 @@ class FishingSystem {
 
         // カーソル操作
         if (this.keysDown['ArrowLeft'] || this.keysDown['a']) {
-            this.fightCursorPos = Math.max(2, this.fightCursorPos - 120 * dt);
+            this.fightCursorPos = Math.max(2, this.fightCursorPos - 150 * dt);
         }
         if (this.keysDown['ArrowRight'] || this.keysDown['d']) {
-            this.fightCursorPos = Math.min(98, this.fightCursorPos + 120 * dt);
+            this.fightCursorPos = Math.min(98, this.fightCursorPos + 150 * dt);
         }
         // マウスでも操作可能
         const barArea = document.querySelector('.fight-bar-area');
@@ -373,15 +374,18 @@ class FishingSystem {
             }
         }
 
-        // ゲージ判定
+        // ゲージ判定（低レアは爆速で溜まり、ほぼ減らない）
         const zoneLeft = this.fightZonePos - this.fightZoneWidth / 2;
         const zoneRight = this.fightZonePos + this.fightZoneWidth / 2;
         const inZone = this.fightCursorPos >= zoneLeft && this.fightCursorPos <= zoneRight;
 
+        const fillRate = 60 / (diff * diff + 0.5);  // C: ~86, SSR: ~2.4
+        const drainRate = 5 * diff * diff;            // C: ~2.5, SSR: ~125
+
         if (inZone) {
-            this.fightGauge = Math.min(100, this.fightGauge + (40 / diff) * dt);
+            this.fightGauge = Math.min(100, this.fightGauge + fillRate * dt);
         } else {
-            this.fightGauge = Math.max(0, this.fightGauge - (20 * diff) * dt);
+            this.fightGauge = Math.max(0, this.fightGauge - drainRate * dt);
         }
 
         // UI更新

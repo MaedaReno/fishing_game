@@ -115,6 +115,7 @@ class Renderer {
         this.drawLightRays(waterY);
         this.drawBubbles(waterY);
         this.drawWaterSurface(waterY);
+        this.drawDock();
         this.drawParticles();
     }
 
@@ -367,77 +368,154 @@ class Renderer {
         ctx.restore();
     }
 
-    /* ---- 釣り竿と糸 ---- */
-    drawRod(rodTipX, rodTipY, hookX, hookY, tension) {
-        const { ctx } = this;
-        const waterY = this.h * this.waterLevel;
-
-        // 竿（画面右端付近から伸びる）
-        const rodBaseX = this.w * 0.85;
-        const rodBaseY = waterY - 60;
-
+    /* ---- 桟橋（手前の足場） ---- */
+    drawDock() {
+        const { ctx, w, h } = this;
+        const dockY = h * 0.82;
         ctx.save();
-        ctx.strokeStyle = '#8B4513';
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
+        // 桟橋の板
+        const grad = ctx.createLinearGradient(0, dockY, 0, h);
+        grad.addColorStop(0, '#5d4037');
+        grad.addColorStop(0.3, '#4e342e');
+        grad.addColorStop(1, '#3e2723');
+        ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.moveTo(rodBaseX, rodBaseY);
-        // 竿の曲がり（テンションに応じて）
-        const bendX = rodBaseX + (rodTipX - rodBaseX) * 0.5;
-        const bendY = rodBaseY - 40 + tension * 20;
-        ctx.quadraticCurveTo(bendX, bendY, rodTipX, rodTipY);
-        ctx.stroke();
-
-        // 釣り糸
-        ctx.strokeStyle = 'rgba(200, 230, 255, 0.6)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath();
-        ctx.moveTo(rodTipX, rodTipY);
-        ctx.lineTo(hookX, hookY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // 釣り針（ルアー）
-        ctx.fillStyle = '#ffd700';
-        ctx.shadowColor = '#ffd700';
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.arc(hookX, hookY, 4, 0, Math.PI * 2);
+        ctx.moveTo(w * 0.15, dockY);
+        ctx.lineTo(w * 0.85, dockY);
+        ctx.lineTo(w * 0.95, h);
+        ctx.lineTo(w * 0.05, h);
+        ctx.closePath();
         ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // 浮き（水面に浮かぶ）
-        if (hookY > waterY) {
-            ctx.fillStyle = '#ff4444';
+        // 板の線
+        ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+        ctx.lineWidth = 1;
+        for (let i = 1; i < 6; i++) {
+            const ly = dockY + (h - dockY) * (i / 6);
             ctx.beginPath();
-            ctx.ellipse(hookX, waterY, 5, 3, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.ellipse(hookX, waterY, 5, 3, 0, Math.PI, Math.PI * 2);
-            ctx.fill();
+            const lx1 = w * (0.15 - 0.1 * ((ly - dockY) / (h - dockY))) + w * 0.05;
+            const lx2 = w * (0.85 + 0.1 * ((ly - dockY) / (h - dockY))) - w * 0.05;
+            ctx.moveTo(lx1, ly);
+            ctx.lineTo(lx2, ly);
+            ctx.stroke();
         }
-
+        // 手すり
+        ctx.strokeStyle = '#6d4c41';
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.18, dockY - 5);
+        ctx.lineTo(w * 0.82, dockY - 5);
+        ctx.stroke();
         ctx.restore();
     }
 
-    /* ---- キャスティングの軌道プレビュー ---- */
-    drawCastPreview(startX, startY, power, angle) {
-        const { ctx } = this;
+    /* ---- 釣り竿と糸（一人称視点：手前から奥へ） ---- */
+    drawRod(rodTipX, rodTipY, hookX, hookY, tension) {
+        const { ctx, w, h } = this;
+        const waterY = h * this.waterLevel;
+
+        // 竿の根元は画面下部中央やや右（プレイヤーの手の位置）
+        const rodBaseX = w * 0.55;
+        const rodBaseY = h + 20;
+        // 竿の中間点（遠近法で斜め上方へ）
+        const midX = w * 0.50;
+        const midY = h * 0.55 + tension * 30;
+
+        // 竿本体（太い→細い、2セグメント）
         ctx.save();
-        ctx.setLineDash([6, 6]);
-        ctx.strokeStyle = 'rgba(255, 215, 0, 0.4)';
-        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+
+        // グリップ部分（太い）
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 12;
         ctx.beginPath();
-        ctx.moveTo(startX, startY);
-        for (let t = 0; t < 30; t++) {
-            const px = startX + Math.cos(angle) * power * t * 0.5;
-            const py = startY + Math.sin(angle) * power * t * 0.5 + 0.3 * t * t;
-            ctx.lineTo(px, py);
-        }
+        ctx.moveTo(rodBaseX, rodBaseY);
+        ctx.lineTo(rodBaseX - 10, h * 0.78);
         ctx.stroke();
+
+        // リール
+        ctx.fillStyle = '#78909c';
+        ctx.beginPath();
+        ctx.arc(rodBaseX - 8, h * 0.80, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#b0bec5';
+        ctx.beginPath();
+        ctx.arc(rodBaseX - 8, h * 0.80, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        // ロッド本体（カーブ、テンションで曲がる）
+        const bendMidX = midX + (rodTipX - midX) * 0.4;
+        const bendMidY = midY + tension * 40;
+        ctx.strokeStyle = '#5d4037';
+        ctx.lineWidth = 7;
+        ctx.beginPath();
+        ctx.moveTo(rodBaseX - 10, h * 0.78);
+        ctx.quadraticCurveTo(bendMidX + 20, bendMidY + 30, midX, midY);
+        ctx.stroke();
+
+        // ロッド先端部（細い）
+        ctx.strokeStyle = '#8d6e63';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(midX, midY);
+        ctx.quadraticCurveTo(
+            rodTipX + (midX - rodTipX) * 0.3,
+            rodTipY + tension * 25,
+            rodTipX, rodTipY
+        );
+        ctx.stroke();
+
+        // ガイドリング（竿上の小さな輪）
+        const guides = [0.3, 0.55, 0.8];
+        guides.forEach(t => {
+            const gx = rodBaseX - 10 + (rodTipX - rodBaseX + 10) * t;
+            const gy = h * 0.78 + (rodTipY - h * 0.78) * t + tension * 15 * t;
+            ctx.strokeStyle = '#90a4ae';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(gx, gy, 3, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+
+        // 釣り糸（先端からフックへ）
+        ctx.strokeStyle = 'rgba(220, 240, 255, 0.5)';
+        ctx.lineWidth = 1;
         ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(rodTipX, rodTipY);
+        // 糸のたるみ
+        const sagX = (rodTipX + hookX) / 2;
+        const sagY = Math.max(rodTipY, hookY) + 20 - tension * 15;
+        ctx.quadraticCurveTo(sagX, sagY, hookX, hookY);
+        ctx.stroke();
+
+        // 浮き（水面）
+        if (hookY > waterY) {
+            const bobSize = 6;
+            ctx.fillStyle = '#ff1744';
+            ctx.beginPath();
+            ctx.ellipse(hookX, waterY, bobSize, bobSize * 0.4, 0, 0, Math.PI);
+            ctx.fill();
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.ellipse(hookX, waterY, bobSize, bobSize * 0.4, 0, Math.PI, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // ルアー/フック（水中で光る）
+        ctx.shadowColor = '#ffd700';
+        ctx.shadowBlur = 10;
+        ctx.fillStyle = '#ffd700';
+        ctx.beginPath();
+        ctx.arc(hookX, hookY, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        // フックの形
+        ctx.strokeStyle = '#bdbdbd';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(hookX, hookY + 4, 4, Math.PI * 0.8, Math.PI * 2.2);
+        ctx.stroke();
+
         ctx.restore();
     }
 
