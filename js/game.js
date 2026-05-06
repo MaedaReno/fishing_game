@@ -85,7 +85,6 @@ const game = {
         }
     },
 
-    /* ---- 釣り場リスト構築 ---- */
     _buildSpotList() {
         const container = document.getElementById('spot-list');
         container.innerHTML = '';
@@ -101,6 +100,44 @@ const game = {
             `;
             if (spot.unlocked) {
                 card.addEventListener('click', () => this._enterSpot(spot));
+            } else {
+                const reqCount = spot.unlockReq ? spot.unlockReq.count : 0;
+                const reqFishId = spot.unlockReq ? spot.unlockReq.fishId : null;
+                const reqFish = reqFishId ? FISH_DATABASE.find(f => f.id === reqFishId) : null;
+                const caughtCount = reqFishId ? (this.collection[reqFishId] || 0) : 0;
+                const canUnlock = (caughtCount >= reqCount) && (this.money >= spot.unlockCost);
+
+                let reqHtml = '';
+                if (reqFish) {
+                    const reqColor = caughtCount >= reqCount ? '#4ade80' : '#f87171';
+                    reqHtml = `<div style="font-size: 0.85rem; margin: 4px 0; display: flex; justify-content: space-between;">
+                        <span>🎯 条件: ${reqFish.emoji}${reqFish.name}</span>
+                        <span style="color:${reqColor}; font-weight: bold;">${caughtCount}/${reqCount}匹</span>
+                    </div>`;
+                }
+                const costColor = this.money >= spot.unlockCost ? '#4ade80' : '#f87171';
+
+                card.innerHTML += `
+                    <div class="spot-lock-info" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <div style="font-size: 0.85rem; margin: 4px 0; display: flex; justify-content: space-between;">
+                            <span>💰 費用:</span>
+                            <span style="color:${costColor}; font-weight: bold;">${spot.unlockCost} コイン</span>
+                        </div>
+                        ${reqHtml}
+                        <button class="btn-glow small btn-unlock" style="margin-top: 12px; width: 100%; padding: 8px;" ${canUnlock ? '' : 'disabled'}>🔓 解放する</button>
+                    </div>
+                `;
+
+                const btn = card.querySelector('.btn-unlock');
+                if (btn && canUnlock) {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.money -= spot.unlockCost;
+                        spot.unlocked = true;
+                        this._updateHUD();
+                        this._buildSpotList();
+                    });
+                }
             }
             container.appendChild(card);
         });
@@ -148,24 +185,22 @@ const game = {
         `;
     },
 
-    /* ---- 味方にする ---- */
     _keepFish() {
         if (!this._pendingFish) return;
         const fish = this._pendingFish;
         this.allies.push({ ...fish, weight: this._pendingWeight });
-        this.collection[fish.id] = true;
+        this.collection[fish.id] = (this.collection[fish.id] || 0) + 1;
         this.catches++;
         this._updateHUD();
         this._pendingFish = null;
         this._returnToFishing();
     },
 
-    /* ---- 売却 ---- */
     _sellFish() {
         if (!this._pendingFish) return;
         const fish = this._pendingFish;
         this.money += fish.value;
-        this.collection[fish.id] = true;
+        this.collection[fish.id] = (this.collection[fish.id] || 0) + 1;
         this.catches++;
         this._updateHUD();
         this._pendingFish = null;
@@ -185,12 +220,14 @@ const game = {
         const grid = document.getElementById('collection-grid');
         grid.innerHTML = '';
         FISH_DATABASE.forEach(fish => {
-            const caught = !!this.collection[fish.id];
+            const caughtCount = this.collection[fish.id] || 0;
+            const caught = caughtCount > 0;
             const item = document.createElement('div');
             item.className = 'collection-item ' + (caught ? 'caught' : 'unknown');
             item.innerHTML = `
                 <span class="fish-emoji">${caught ? fish.emoji : '❓'}</span>
                 <span class="fish-label">${caught ? fish.name : '???'}</span>
+                ${caught ? `<span style="font-size: 0.8rem; opacity: 0.7; margin-top: 4px;">捕獲数: ${caughtCount}</span>` : ''}
             `;
             grid.appendChild(item);
         });
