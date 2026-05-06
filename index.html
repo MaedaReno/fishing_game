@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>さかな超大戦 - 釣りモード</title>
+    <meta name="description" content="さかな超大戦：アングラー・サマナーとして魚を釣り上げろ！">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&family=Outfit:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-wrapper">
+        <!-- メインCanvas -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- UIオーバーレイ -->
+        <div id="ui-overlay">
+
+            <!-- タイトル画面 -->
+            <section id="screen-title" class="screen active">
+                <div class="title-content">
+                    <div class="title-logo">
+                        <span class="title-sub">🎣 ANGLER SUMMONER</span>
+                        <h1 id="main-title">さかな超大戦</h1>
+                        <span class="title-tagline">— 釣りモード —</span>
+                    </div>
+                    <button id="btn-start" class="btn-glow">冒険を始める</button>
+                    <p class="hint-text">クリックして釣りを開始</p>
+                </div>
+            </section>
+
+            <!-- 釣り場選択画面 -->
+            <section id="screen-spot" class="screen">
+                <div class="spot-content">
+                    <h2 class="section-title">釣り場を選択</h2>
+                    <div id="spot-list" class="spot-grid"></div>
+                    <button id="btn-back-title" class="btn-secondary">タイトルに戻る</button>
+                </div>
+            </section>
+
+            <!-- 釣りゲーム画面 (HUD) -->
+            <section id="screen-fishing" class="screen">
+                <div class="fishing-hud">
+                    <div class="hud-top">
+                        <div class="hud-spot-name" id="hud-spot-name">---</div>
+                        <div class="hud-stats">
+                            <span id="hud-catches">🐟 0</span>
+                            <span id="hud-money">💰 0</span>
+                        </div>
+                    </div>
+                    <div id="fishing-instruction" class="instruction-text">クリックでキャスト！</div>
+                </div>
+                <!-- ファイト中のUI -->
+                <div id="fight-ui" class="fight-panel hidden">
+                    <div class="fight-header">
+                        <span id="fight-fish-name">???</span>
+                        <span id="fight-rarity" class="rarity-badge">C</span>
+                    </div>
+                    <div class="fight-gauge-wrap">
+                        <div class="fight-gauge-label">捕獲ゲージ</div>
+                        <div class="fight-gauge-track">
+                            <div id="fight-gauge-fill" class="fight-gauge-fill"></div>
+                        </div>
+                    </div>
+                    <div class="fight-bar-area">
+                        <div id="fight-zone" class="fight-zone"></div>
+                        <div id="fight-cursor" class="fight-cursor"></div>
+                    </div>
+                    <p class="fight-hint">← → キーまたはマウスでバーを操作</p>
+                </div>
+                <button id="btn-leave-fishing" class="btn-corner">釣り場を離れる</button>
+            </section>
+
+            <!-- 釣果画面 -->
+            <section id="screen-result" class="screen">
+                <div class="result-content">
+                    <div id="result-icon" class="result-fish-icon"></div>
+                    <h2 id="result-title" class="result-title">釣り上げた！</h2>
+                    <div id="result-fish-name" class="result-name">???</div>
+                    <div id="result-rarity-badge" class="rarity-badge large">C</div>
+                    <div id="result-stats" class="result-stats"></div>
+                    <div class="result-actions">
+                        <button id="btn-keep" class="btn-glow small">仲間にする</button>
+                        <button id="btn-sell" class="btn-secondary small">売却する</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 図鑑画面 -->
+            <section id="screen-collection" class="screen">
+                <div class="collection-content">
+                    <h2 class="section-title">図鑑</h2>
+                    <div id="collection-grid" class="collection-grid"></div>
+                    <button id="btn-back-spot" class="btn-secondary">戻る</button>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/fishing.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
