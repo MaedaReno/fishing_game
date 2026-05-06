@@ -30,17 +30,19 @@ class FishingSystem {
         this.hitWindow = 0;
         this.hitTarget = null;
         this.hitSuccess = false;
+        this.timeStopRemaining = 0;
 
         // ファイト
         this.fightFish = null;
-        this.fightGauge = 0;
+        this.fightCapture = 0;
         this.fightZonePos = 50;
         this.fightZoneDir = 1;
         this.fightCursorPos = 50;
         this.fightZoneWidth = 20;
         this.fightActive = false;
-        this.escapeTimer = 0;        // ゲージ0継続タイマー
-        this.escapeThreshold = 5;    // 逃走までの秒数（基本値）
+        this.fightEscapeTimer = 0;
+        this.fightFishTimer = 0;
+        this.fightFishMoveTime = 1.0;
 
         // 入力
         this.mouseX = 0;
@@ -58,6 +60,7 @@ class FishingSystem {
         this._setupInput();
         this.rodTipX = renderer.w * 0.85;
         this.rodTipY = renderer.h * 0.25;
+        this.rebuildActiveSkillsUI();
     }
 
     /* ---- 釣り場を離れる ---- */
@@ -69,13 +72,34 @@ class FishingSystem {
     }
 
     /* =========== 魚影の生成 =========== */
+    _getWeightedRandomFish(spotFish) {
+        let nextSpot = FISHING_SPOTS.find(s => !s.unlocked);
+        let targetUnlockFishId = nextSpot && nextSpot.unlockReq ? nextSpot.unlockReq.fishId : null;
+
+        let totalWeight = 0;
+        spotFish.forEach(f => {
+            let w = f.spawnWeight || 1;
+            if (f.id === targetUnlockFishId) w *= 3.0;
+            totalWeight += w;
+        });
+
+        let r = Math.random() * totalWeight;
+        for (const f of spotFish) {
+            let w = f.spawnWeight || 1;
+            if (f.id === targetUnlockFishId) w *= 3.0;
+            r -= w;
+            if (r <= 0) return f;
+        }
+        return spotFish[0];
+    }
+
     _spawnFishEntities() {
         const waterY = renderer.h * renderer.waterLevel;
         const waterH = renderer.h - waterY;
         const spotFish = this.spot.fishIds.map(id => FISH_DATABASE.find(f => f.id === id)).filter(Boolean);
 
         for (let i = 0; i < 8; i++) {
-            const fish = spotFish[Math.floor(Math.random() * spotFish.length)];
+            const fish = this._getWeightedRandomFish(spotFish);
             const depth = waterY + 60 + Math.random() * (waterH - 120);
             const facingLeft = Math.random() > 0.5;
             this.activeFishEntities.push({
@@ -87,7 +111,7 @@ class FishingSystem {
                 facingLeft,
                 wobblePhase: Math.random() * Math.PI * 2,
                 scale: 0.8 + Math.random() * 0.4,
-                interested: false, // ルアーに興味を持っているか
+                interested: false,
                 approachTimer: 0,
             });
         }
@@ -98,7 +122,7 @@ class FishingSystem {
         const waterY = renderer.h * renderer.waterLevel;
         const waterH = renderer.h - waterY;
         const spotFish = this.spot.fishIds.map(id => FISH_DATABASE.find(f => f.id === id)).filter(Boolean);
-        const fish = spotFish[Math.floor(Math.random() * spotFish.length)];
+        const fish = this._getWeightedRandomFish(spotFish);
         const facingLeft = Math.random() > 0.5;
         const depth = waterY + 60 + Math.random() * (waterH - 120);
         this.activeFishEntities.push({
@@ -141,6 +165,81 @@ class FishingSystem {
         window.removeEventListener('keyup', this._onKeyUp);
     }
 
+    /* =========== アクティブスキル =========== */
+    rebuildActiveSkillsUI() {
+        const container = document.getElementById('active-skills-container');
+        if (!container) return;
+        
+        const activeSkills = game.learnedSkills.filter(s => s.type === 'active');
+        if (activeSkills.length === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+
+        container.classList.remove('hidden');
+        container.innerHTML = '';
+        
+        if (!game.activeSkillCooldowns) game.activeSkillCooldowns = {};
+
+        activeSkills.forEach((skill, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-active-skill';
+            btn.id = `btn-skill-${skill.id}`;
+            
+            const keyNum = index + 1;
+            btn.innerHTML = `
+                <div class="skill-icon">${skill.icon || '✨'}</div>
+                <div class="skill-key">${keyNum}</div>
+                <div class="skill-cooldown-overlay" id="cd-${skill.id}"></div>
+            `;
+            
+            btn.addEventListener('click', () => this.useActiveSkill(skill));
+            container.appendChild(btn);
+        });
+    }
+
+    useActiveSkill(skill) {
+        if (this.state !== 'fighting') return;
+        
+        const now = performance.now();
+        const lastUsed = game.activeSkillCooldowns[skill.id] || 0;
+        if (now - lastUsed < skill.cooldown * 1000) return;
+
+        game.activeSkillCooldowns[skill.id] = now;
+        
+        if (skill.id === 'hookmaster') {
+            this.fightCapture += 30;
+            if (this.fightCapture > 100) this.fightCapture = 100;
+            this._showSkillEffect('⚡ フッキングマスター！ (ゲージ+30%)');
+        } else if (skill.id === 'timestop') {
+            this.timeStopRemaining = 3.0;
+            this._showSkillEffect('⏳ 時間停止！ (3秒間)');
+        } else if (skill.id === 'god_hand') {
+            this.fightCapture += 50;
+            if (this.fightCapture > 100) this.fightCapture = 100;
+            this._showSkillEffect('✋ ゴッドハンド！ (ゲージ+50%)');
+        }
+    }
+
+    _showSkillEffect(text) {
+        const popup = document.createElement('div');
+        popup.className = 'skill-popup-text';
+        popup.textContent = text;
+        popup.style.position = 'absolute';
+        popup.style.top = '30%';
+        popup.style.left = '50%';
+        popup.style.transform = 'translate(-50%, -50%)';
+        popup.style.color = '#fff';
+        popup.style.textShadow = '0 0 10px #ffea00';
+        popup.style.fontSize = '2rem';
+        popup.style.fontWeight = 'bold';
+        popup.style.pointerEvents = 'none';
+        popup.style.zIndex = '1000';
+        popup.style.animation = 'skillPopup 1.5s ease-out forwards';
+        document.getElementById('screen-fishing').appendChild(popup);
+        setTimeout(() => popup.remove(), 1500);
+    }
+
     _handleMouseDown(e) {
         if (this.state === 'idle') {
             this.castCharging = true;
@@ -161,16 +260,14 @@ class FishingSystem {
     }
 
     _handleKeyDown(e) {
-        if (e.key === ' ' || e.key === 'Enter') {
-            if (this.state === 'idle') {
-                this.castCharging = true;
-                this.castPower = 0;
-                this.state = 'casting';
-            } else if (this.state === 'hit') {
-                this._onHitAttempt();
-            } else if (this.state === 'waiting') {
-                this._reelIn();
-            }
+        if (e.code === 'Space') {
+            this._handleMouseDown();
+        }
+        
+        const activeSkills = game.learnedSkills.filter(s => s.type === 'active');
+        const keyNum = parseInt(e.key);
+        if (!isNaN(keyNum) && keyNum > 0 && keyNum <= activeSkills.length) {
+            this.useActiveSkill(activeSkills[keyNum - 1]);
         }
     }
 
@@ -190,9 +287,8 @@ class FishingSystem {
         const waterY = renderer.h * renderer.waterLevel;
         const power = Math.min(this.castPower, 100);
         
-        // 浮きと餌は画面中央奥へキャスト
         const castRatio = power / 100;
-        this.hookTargetX = renderer.w * 0.5; // 画面中央
+        this.hookTargetX = renderer.w * 0.5;
         this.hookTargetY = waterY + 40 + (1 - castRatio) * (renderer.h * 0.35);
         this.hookX = renderer.w * 0.5;
         this.hookY = renderer.h * 0.8;
@@ -202,7 +298,6 @@ class FishingSystem {
 
         document.getElementById('fishing-instruction').textContent = 'ルアーが着水...';
 
-        // スプラッシュ予約
         setTimeout(() => {
             renderer.addSplash(this.hookTargetX, waterY, 15);
             renderer.addRipple(this.hookTargetX, waterY);
@@ -227,29 +322,43 @@ class FishingSystem {
             case 'waiting':
             case 'hit':
             case 'fighting':
-                // パワーが大きいほどズーム（奥に飛ぶ演出）
                 renderer.targetZoom = 1.0 + (this.castPower / 100) * 1.5;
                 const waterY = renderer.h * renderer.waterLevel;
                 const zoomedY = waterY + (this.hookTargetY - waterY) * renderer.targetZoom;
-                renderer.targetPanY = renderer.h * 0.5 - zoomedY; // 浮きが画面中央になるようにパン
+                renderer.targetPanY = renderer.h * 0.5 - zoomedY;
                 
                 if (this.state === 'waiting') this._updateWaiting(dt);
                 if (this.state === 'hit') this._updateHit(dt);
                 if (this.state === 'fighting') this._updateFighting(dt);
                 break;
         }
+
+        // アクティブスキルのクールダウンUI更新
+        if (game.learnedSkills && game.activeSkillCooldowns) {
+            const now = performance.now();
+            game.learnedSkills.filter(s => s.type === 'active').forEach(skill => {
+                const overlay = document.getElementById(`cd-${skill.id}`);
+                if (overlay) {
+                    const lastUsed = game.activeSkillCooldowns[skill.id] || 0;
+                    const elapsed = (now - lastUsed) / 1000;
+                    if (elapsed < skill.cooldown) {
+                        const percent = ((skill.cooldown - elapsed) / skill.cooldown) * 100;
+                        overlay.style.height = `${percent}%`;
+                    } else {
+                        overlay.style.height = `0%`;
+                    }
+                }
+            });
+        }
     }
 
-    /* ---- キャスト中 ---- */
     _updateCasting(dt) {
         if (this.castCharging) {
             this.castPower = Math.min(this.castPower + dt * 80, 100);
         }
     }
 
-    /* ---- 待機中 ---- */
     _updateWaiting(dt) {
-        // フックをターゲットに移動
         if (!this.hookLanded) {
             const dx = this.hookTargetX - this.hookX;
             const dy = this.hookTargetY - this.hookY;
@@ -265,13 +374,11 @@ class FishingSystem {
             return;
         }
 
-        // ルアーの揺れ
         this.hookX = this.hookTargetX + Math.sin(renderer.time * 2) * 3;
         this.hookY = this.hookTargetY + Math.sin(renderer.time * 1.5) * 5;
 
         this.waitTimer += dt;
 
-        // 魚がルアーに近づくか判定
         for (const entity of this.activeFishEntities) {
             const dx = entity.x - this.hookX;
             const dy = entity.y - this.hookY;
@@ -284,12 +391,10 @@ class FishingSystem {
 
             if (entity.interested) {
                 entity.approachTimer += dt;
-                // ルアーに近づく
                 entity.x += (this.hookX - entity.x) * 0.01;
                 entity.y += (this.hookY - entity.y) * 0.005;
                 entity.facingLeft = entity.x > this.hookX;
 
-                // 十分近づいたらヒット判定開始
                 if (dist < 30 && entity.approachTimer > 1.0) {
                     this._triggerHit(entity);
                     return;
@@ -297,23 +402,19 @@ class FishingSystem {
             }
         }
 
-        // 長時間待っても釣れないとき自動で魚を近づける
         if (this.waitTimer > 8) {
             const closest = this.activeFishEntities.reduce((best, e) => {
                 const d = Math.hypot(e.x - this.hookX, e.y - this.hookY);
                 return (!best || d < best.dist) ? { entity: e, dist: d } : best;
             }, null);
-            if (closest) {
-                closest.entity.interested = true;
-            }
+            if (closest) closest.entity.interested = true;
         }
     }
 
-    /* ---- ヒット発生 ---- */
     _triggerHit(entity) {
         this.state = 'hit';
         this.hitTarget = entity;
-        this.hitWindow = 2.0; // 2秒間の猶予
+        this.hitWindow = 2.0;
         this.hitSuccess = false;
 
         document.getElementById('fishing-instruction').textContent = '🔥 HIT! クリックまたはSpaceキー！';
@@ -325,12 +426,10 @@ class FishingSystem {
 
     _updateHit(dt) {
         this.hitWindow -= dt;
-        // ヒットウィンドウの演出（点滅）
         const flash = Math.sin(renderer.time * 15) > 0;
         document.getElementById('fishing-instruction').style.opacity = flash ? '1' : '0.6';
 
         if (this.hitWindow <= 0) {
-            // ヒット失敗 → 魚が逃げる
             this._fishEscaped('タイミングを逃した...');
         }
     }
@@ -341,73 +440,81 @@ class FishingSystem {
         this._startFight(this.hitTarget);
     }
 
-    /* =========== ファイト =========== */
     _startFight(entity) {
         this.state = 'fighting';
         this.fightFish = entity.fish;
-        this.fightGauge = 0;
+        this.fightCapture = 0;
         this.fightZonePos = 50;
         this.fightZoneDir = 1;
         this.fightCursorPos = 50;
         this.fightActive = true;
+        this.timeStopRemaining = 0;
+        this.fightEscapeTimer = 0;
+        this.fightFishTimer = 0;
 
-        // 装備ボーナスの取得
         const rod = game.equippedRod || RODS[0];
+        const diff = this.fightFish.difficulty * rod.diffMod;
         const skills = game.learnedSkills || [];
-        const diffMod = rod.diffMod;
-        const zoneMod = skills.find(s => s.id === 'wideview') ? 1.2 : 1;
-        const escapeBonus = skills.find(s => s.id === 'patience') ? 3 : 0;
+        this.fightZoneWidth = Math.max(10, (40 - diff * 6) * (skills.find(s => s.id === 'wideview') ? 1.2 : 1));
 
-        // 難易度に応じた設定（装備ボーナス適用）
-        const diff = this.fightFish.difficulty * diffMod;
-        this.fightZoneWidth = Math.max(10, (40 - diff * 6) * zoneMod);
-        this.escapeTimer = 0;
-        this.escapeThreshold = Math.max(3, 6 - diff * 0.5 + escapeBonus);
-
-        // UI更新（釣れるまで情報は隠す）
         document.getElementById('fight-ui').classList.remove('hidden');
-        document.getElementById('fight-fish-name').textContent = '???';
-        const rarityBadge = document.getElementById('fight-rarity');
-        rarityBadge.textContent = '?';
-        rarityBadge.className = `rarity-badge rarity-unknown`;
         document.getElementById('fishing-instruction').textContent = '';
-        document.getElementById('fishing-instruction').style.color = '';
-        document.getElementById('fishing-instruction').style.fontSize = '';
-        document.getElementById('fishing-instruction').style.opacity = '';
+    }
+
+    _updateGaugeAndEscape(dt, isInside) {
+        const fish = this.hitTarget.fish;
+        let drainMod = 1.0;
+        let fillMod = 1.0;
+        game.learnedSkills.forEach(s => {
+            if (s.effect && s.effect.drainMod) drainMod *= s.effect.drainMod;
+            if (s.effect && s.effect.fillMod) fillMod *= s.effect.fillMod;
+        });
+
+        if (isInside || this.timeStopRemaining > 0) {
+            this.fightCapture += 20 * fillMod * dt;
+            this.fightEscapeTimer = 0;
+            if (this.fightCapture >= 100) {
+                this.fightCapture = 100;
+                this._catchFish();
+            }
+        } else {
+            this.fightCapture -= 15 * drainMod * fish.difficulty * dt;
+            if (this.fightCapture <= 0) {
+                this.fightCapture = 0;
+                this.fightEscapeTimer += dt;
+                let escapeTimeMod = 0;
+                game.learnedSkills.forEach(s => {
+                    if (s.effect && s.effect.escapeTimeMod) escapeTimeMod += s.effect.escapeTimeMod;
+                });
+                if (this.fightEscapeTimer > 2.0 + escapeTimeMod) this._fishEscaped('魚に逃げられた！');
+            }
+        }
+        
+        document.getElementById('fight-gauge-fill').style.width = `${Math.max(0, this.fightCapture)}%`;
+        const r = Math.min(255, (100 - this.fightCapture) * 5);
+        const g = Math.min(255, this.fightCapture * 5);
+        document.getElementById('fight-gauge-fill').style.backgroundColor = `rgb(${r}, ${g}, 0)`;
     }
 
     _updateFighting(dt) {
-        if (!this.fightActive) return;
+        if (this.timeStopRemaining > 0) {
+            this.timeStopRemaining -= dt;
+            this._updateGaugeAndEscape(dt, true);
+            return;
+        }
 
         const rod = game.equippedRod || RODS[0];
-        const skills = game.learnedSkills || [];
         const diff = this.fightFish.difficulty * rod.diffMod;
-        const fillMod = skills.find(s => s.id === 'quickfill') ? 1.4 : 1;
-        const drainMod = skills.find(s => s.id === 'steady') ? 0.7 : 1;
-
-        // ゾーンの移動速度（低レアは非常に遅い、高レアは速い）
         const speed = (0.5 + diff * 1.2) * 40;
         this.fightZonePos += this.fightZoneDir * speed * dt;
 
-        // ランダムな方向転換（低レアはほぼ方向転換しない）
-        if (Math.random() < 0.005 * diff * diff) {
+        if (this.fightZonePos > 95 - this.fightZoneWidth / 2 || this.fightZonePos < 5 + this.fightZoneWidth / 2) {
             this.fightZoneDir *= -1;
         }
-        if (this.fightZonePos > 95 - this.fightZoneWidth / 2) {
-            this.fightZoneDir = -1;
-        }
-        if (this.fightZonePos < 5 + this.fightZoneWidth / 2) {
-            this.fightZoneDir = 1;
-        }
 
-        // カーソル操作
-        if (this.keysDown['ArrowLeft'] || this.keysDown['a']) {
-            this.fightCursorPos = Math.max(2, this.fightCursorPos - 150 * dt);
-        }
-        if (this.keysDown['ArrowRight'] || this.keysDown['d']) {
-            this.fightCursorPos = Math.min(98, this.fightCursorPos + 150 * dt);
-        }
-        // マウスでも操作可能
+        if (this.keysDown['ArrowLeft'] || this.keysDown['a']) this.fightCursorPos = Math.max(2, this.fightCursorPos - 150 * dt);
+        if (this.keysDown['ArrowRight'] || this.keysDown['d']) this.fightCursorPos = Math.min(98, this.fightCursorPos + 150 * dt);
+
         const barArea = document.querySelector('.fight-bar-area');
         if (barArea) {
             const rect = barArea.getBoundingClientRect();
@@ -416,7 +523,6 @@ class FishingSystem {
             }
         }
 
-        // ゲージ判定（低レアは爆速で溜まり、ほぼ減らない）
         const zoneLeft = this.fightZonePos - this.fightZoneWidth / 2;
         const zoneRight = this.fightZonePos + this.fightZoneWidth / 2;
         const inZone = this.fightCursorPos >= zoneLeft && this.fightCursorPos <= zoneRight;

@@ -340,6 +340,63 @@ html, body {
     border-color: var(--glass-border-hover);
 }
 
+/* ========== アクティブスキルUI ========== */
+.active-skills-container {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    display: flex;
+    gap: 12px;
+    pointer-events: auto;
+}
+
+.btn-active-skill {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    cursor: pointer;
+    overflow: hidden;
+    transition: var(--transition-smooth);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-active-skill:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+.btn-active-skill:active {
+    transform: translateY(1px);
+}
+
+.btn-active-skill .skill-icon {
+    font-size: 1.8rem;
+}
+
+.btn-active-skill .skill-key {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    color: var(--text-secondary);
+}
+
+.skill-cooldown-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    height: 0%;
+    transition: height 0.1s linear;
+}
+
 /* ========== ファイトUI ========== */
 .fight-panel {
     position: absolute;
@@ -389,7 +446,7 @@ html, body {
 .rarity-A { background: #2196f3; color: #fff; }
 .rarity-S { background: #9c27b0; color: #fff; }
 .rarity-SS { background: linear-gradient(135deg, #ff6f00, #ffd600); color: #fff; }
-.rarity-SSR { background: linear-gradient(135deg, #e91e63, #ff6f00, #ffd600, #00e676); color: #fff; animation: shimmer 2s linear infinite; }
+.rarity-SSS { background: linear-gradient(135deg, #e91e63, #ff6f00, #ffd600, #00e676); color: #fff; animation: shimmer 2s linear infinite; }
 .rarity-unknown { background: #37474f; color: #b0bec5; border: 1px dashed #78909c; }
 
 .fight-gauge-wrap {

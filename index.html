@@ -34,7 +34,10 @@
             <!-- 釣り場選択画面 -->
             <section id="screen-spot" class="screen">
                 <div class="spot-content">
-                    <h2 class="section-title">釣り場を選択</h2>
+                    <div class="spot-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                        <h2 class="section-title" style="margin-bottom: 0;">釣り場を選択</h2>
+                        <div class="shop-money">所持金: <span id="spot-money-amount">💰 0</span></div>
+                    </div>
                     <div id="spot-list" class="spot-grid"></div>
                     <div style="display: flex; gap: 16px; justify-content: center; margin-top: 16px;">
                         <button id="btn-back-title" class="btn-secondary">タイトルに戻る</button>
@@ -71,6 +74,9 @@
                     </div>
                     <div id="fishing-instruction" class="instruction-text">クリックでキャスト！</div>
                 </div>
+                <!-- アクティブスキルUI -->
+                <div id="active-skills-container" class="active-skills-container hidden"></div>
+
                 <!-- ファイト中のUI -->
                 <div id="fight-ui" class="fight-panel hidden">
                     <div class="fight-header">

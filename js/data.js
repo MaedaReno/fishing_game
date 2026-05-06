@@ -118,8 +118,18 @@ const RODS = [
 ];
 
 const SKILLS = [
-    { id: "steady", name: "安定の心", desc: "ゲージ減少速度-30%", cost: 1500, effect: { drainMod: 0.7 } },
-    { id: "quickfill", name: "高速リール", desc: "ゲージ増加速度+40%", cost: 3000, effect: { fillMod: 1.4 } },
-    { id: "patience", name: "忍耐の極意", desc: "逃走猶予時間+3秒", cost: 5000, effect: { escapeTimeMod: 3 } },
-    { id: "wideview", name: "広域探知", desc: "ゾーン幅+20%", cost: 10000, effect: { zoneMod: 1.2 } }
+    // パッシブスキル
+    { id: "steady", type: "passive", name: "安定の心", desc: "ゲージ減少速度-30%", costType: "coin", cost: 1500, effect: { drainMod: 0.7 } },
+    { id: "quickfill", type: "passive", name: "高速リール", desc: "ゲージ増加速度+40%", costType: "coin", cost: 3000, effect: { fillMod: 1.4 } },
+    { id: "patience", type: "passive", name: "忍耐の極意", desc: "逃走猶予時間+3秒", costType: "coin", cost: 5000, effect: { escapeTimeMod: 3 } },
+    { id: "wideview", type: "passive", name: "広域探知", desc: "ゾーン幅+20%", costType: "coin", cost: 10000, effect: { zoneMod: 1.2 } },
+    { id: "merchant", type: "passive", name: "商売上手", desc: "魚の売却価格+20%", costType: "coin", cost: 8000, effect: { sellMod: 1.2 } },
+    
+    // アクティブスキル
+    { id: "hookmaster", type: "active", name: "フッキングマスター", desc: "使用時、捕獲ゲージを30%即座に回復。再使用: 60秒", costType: "coin", cost: 5000, cooldown: 60, icon: "⚡" },
+    { id: "timestop", type: "active", name: "時間停止", desc: "使用時、3秒間魚の動きを完全に止める。再使用: 90秒", costType: "coin", cost: 20000, cooldown: 90, icon: "⏳" },
+
+    // 魚交換スキル (costType: fish)
+    { id: "legendary_lure", type: "passive", name: "伝説のルアー", desc: "魚の引きを弱める（ゲージ減少速度-50%）", costType: "fish", reqFishId: "tai", reqCount: 5, effect: { drainMod: 0.5 } },
+    { id: "god_hand", type: "active", name: "ゴッドハンド", desc: "使用時、捕獲ゲージを50%回復。再使用: 120秒", costType: "fish", reqFishId: "maguro", reqCount: 3, cooldown: 120, icon: "✋" }
 ];

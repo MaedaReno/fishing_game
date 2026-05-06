@@ -11,6 +11,7 @@ const game = {
     catches: 0,
     allies: [],
     collection: {},
+    inventory: {}, // 仲間にした（保持している）魚の数
     currentSpot: null,
     lastTime: 0,
     equippedRod: RODS[0],
@@ -77,7 +78,11 @@ const game = {
         document.getElementById(`screen-${id}`).classList.add('active');
         this.screen = id;
 
-        if (id === 'spot') this._buildSpotList();
+        if (id === 'spot') {
+            const spotMoney = document.getElementById('spot-money-amount');
+            if (spotMoney) spotMoney.textContent = `💰 ${this.money}`;
+            this._buildSpotList();
+        }
         if (id === 'collection') this._buildCollection();
         if (id === 'shop') {
             document.getElementById('shop-money-amount').textContent = `💰 ${this.money}`;
@@ -161,6 +166,10 @@ const game = {
     _updateHUD() {
         document.getElementById('hud-catches').textContent = `🐟 ${this.catches}`;
         document.getElementById('hud-money').textContent = `💰 ${this.money}`;
+        const spotMoney = document.getElementById('spot-money-amount');
+        if (spotMoney) spotMoney.textContent = `💰 ${this.money}`;
+        const shopMoney = document.getElementById('shop-money-amount');
+        if (shopMoney) shopMoney.textContent = `💰 ${this.money}`;
     },
 
     /* ---- 釣果表示 ---- */
@@ -190,6 +199,7 @@ const game = {
         const fish = this._pendingFish;
         this.allies.push({ ...fish, weight: this._pendingWeight });
         this.collection[fish.id] = (this.collection[fish.id] || 0) + 1;
+        this.inventory[fish.id] = (this.inventory[fish.id] || 0) + 1;
         this.catches++;
         this._updateHUD();
         this._pendingFish = null;
@@ -199,7 +209,13 @@ const game = {
     _sellFish() {
         if (!this._pendingFish) return;
         const fish = this._pendingFish;
-        this.money += fish.value;
+        
+        let sellPrice = fish.value;
+        this.learnedSkills.forEach(s => {
+            if (s.effect && s.effect.sellMod) sellPrice = Math.floor(sellPrice * s.effect.sellMod);
+        });
+
+        this.money += sellPrice;
         this.collection[fish.id] = (this.collection[fish.id] || 0) + 1;
         this.catches++;
         this._updateHUD();
@@ -275,34 +291,55 @@ const game = {
                         this._buildShop('rods');
                     });
                 }
-                grid.appendChild(item);
+                list.appendChild(item);
             });
-        } else {
+        } else if (type === 'skills') {
             SKILLS.forEach(skill => {
-                const owned = this.learnedSkills.find(s => s.id === skill.id);
+                const owned = this.learnedSkills.includes(skill);
+                const isFishCost = skill.costType === 'fish';
+                const reqFish = isFishCost ? FISH_DATABASE.find(f => f.id === skill.reqFishId) : null;
+                const invCount = isFishCost ? (this.inventory[skill.reqFishId] || 0) : 0;
+                
+                const canAfford = isFishCost ? (invCount >= skill.reqCount) : (this.money >= skill.cost);
+
+                let costHtml = '';
+                if (isFishCost) {
+                    const reqColor = invCount >= skill.reqCount ? '#4ade80' : '#f87171';
+                    costHtml = `🐟 ${reqFish.emoji}${reqFish.name} <span style="color:${reqColor}; font-weight:bold;">${invCount}/${skill.reqCount}匹</span>`;
+                } else {
+                    const costColor = this.money >= skill.cost ? '#4ade80' : '#f87171';
+                    costHtml = `💰 <span style="color:${costColor}; font-weight:bold;">${skill.cost}</span>`;
+                }
+
+                const typeBadge = skill.type === 'active' 
+                    ? '<span class="rarity-badge rarity-S" style="font-size:0.7rem; padding: 2px 6px; vertical-align: middle; margin-left: 8px;">アクティブ</span>' 
+                    : '<span class="rarity-badge rarity-C" style="font-size:0.7rem; padding: 2px 6px; vertical-align: middle; margin-left: 8px;">パッシブ</span>';
+
                 const item = document.createElement('div');
                 item.className = 'shop-item' + (owned ? ' owned' : '');
-                
-                let btnHtml = owned 
-                    ? `<button class="btn-secondary btn-buy" disabled>習得済み</button>`
-                    : `<button class="btn-glow small btn-buy" ${this.money < skill.cost ? 'disabled' : ''}>購入</button>`;
-
                 item.innerHTML = `
-                    <h3>${skill.name}</h3>
+                    <h3>${skill.icon ? skill.icon + ' ' : ''}${skill.name} ${typeBadge}</h3>
                     <p>${skill.desc}</p>
-                    <div class="shop-item-cost">💰 ${skill.cost}</div>
-                    ${btnHtml}
+                    <div class="shop-item-cost" style="margin-top: 8px;">${costHtml}</div>
+                    <button class="btn-glow small btn-buy" ${owned || !canAfford ? 'disabled' : ''}>${owned ? '習得済' : '購入'}</button>
                 `;
-
+                
                 const btn = item.querySelector('.btn-buy');
                 if (btn && !btn.disabled) {
                     btn.addEventListener('click', () => {
-                        if (this.money >= skill.cost) {
+                        if (isFishCost) {
+                            this.inventory[skill.reqFishId] -= skill.reqCount;
+                        } else {
                             this.money -= skill.cost;
-                            this.learnedSkills.push(skill);
-                            document.getElementById('shop-money-amount').textContent = `💰 ${this.money}`;
-                            this._buildShop('skills');
                         }
+                        this.learnedSkills.push(skill);
+                        
+                        if (typeof fishing.rebuildActiveSkillsUI === 'function') {
+                            fishing.rebuildActiveSkillsUI();
+                        }
+                        
+                        this._updateHUD();
+                        this._buildShop('skills');
                     });
                 }
                 grid.appendChild(item);
