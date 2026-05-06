@@ -148,6 +148,8 @@ class FishingSystem {
             this.state = 'casting';
         } else if (this.state === 'hit') {
             this._onHitAttempt();
+        } else if (this.state === 'waiting') {
+            this._reelIn();
         }
     }
 
@@ -166,20 +168,33 @@ class FishingSystem {
                 this.state = 'casting';
             } else if (this.state === 'hit') {
                 this._onHitAttempt();
+            } else if (this.state === 'waiting') {
+                this._reelIn();
             }
         }
+    }
+
+    _reelIn() {
+        this.state = 'idle';
+        this.hitTarget = null;
+        for (const e of this.activeFishEntities) {
+            e.interested = false;
+        }
+        document.getElementById('fishing-instruction').textContent = 'クリックまたはSpaceキーでキャスト！';
+        renderer.targetZoom = 1.0;
     }
 
     /* =========== キャスト =========== */
     _releaseCast() {
         const waterY = renderer.h * renderer.waterLevel;
         const power = Math.min(this.castPower, 100);
-        // 手前から奥へキャスト（画面中央付近に着水）
+        
+        // 正面奥へキャスト
         const castRatio = power / 100;
-        this.hookTargetX = renderer.w * 0.3 + (Math.random() - 0.5) * renderer.w * 0.3;
-        this.hookTargetY = waterY + 30 + castRatio * (renderer.h * 0.35);
+        this.hookTargetX = renderer.w * 0.5 + (Math.random() - 0.5) * renderer.w * 0.1;
+        this.hookTargetY = waterY + 40 + (1 - castRatio) * (renderer.h * 0.35);
         this.hookX = renderer.w * 0.5;
-        this.hookY = renderer.h * 0.75;
+        this.hookY = renderer.h * 0.8;
         this.hookLanded = false;
         this.state = 'waiting';
         this.waitTimer = 0;
@@ -198,17 +213,21 @@ class FishingSystem {
         this._updateFishEntities(dt);
 
         switch (this.state) {
+            case 'idle':
+            case 'caught':
+                renderer.targetZoom = 1.0;
+                break;
             case 'casting':
+                renderer.targetZoom = 1.0;
                 this._updateCasting(dt);
                 break;
             case 'waiting':
-                this._updateWaiting(dt);
-                break;
             case 'hit':
-                this._updateHit(dt);
-                break;
             case 'fighting':
-                this._updateFighting(dt);
+                renderer.targetZoom = 1.0 + (this.castPower / 100) * 0.4;
+                if (this.state === 'waiting') this._updateWaiting(dt);
+                if (this.state === 'hit') this._updateHit(dt);
+                if (this.state === 'fighting') this._updateFighting(dt);
                 break;
         }
     }
@@ -477,10 +496,11 @@ class FishingSystem {
         document.getElementById('fishing-instruction').style.color = '';
         document.getElementById('fishing-instruction').style.fontSize = '';
         document.getElementById('fishing-instruction').style.opacity = '';
+        renderer.targetZoom = 1.0;
 
         setTimeout(() => {
             if (this.state === 'idle') {
-                document.getElementById('fishing-instruction').textContent = 'クリックでキャスト！';
+                document.getElementById('fishing-instruction').textContent = 'クリックまたはSpaceキーでキャスト！';
                 this._respawnOneFish();
             }
         }, 2000);
@@ -510,19 +530,44 @@ class FishingSystem {
 
     /* =========== 描画 =========== */
     render() {
+        const ctx = renderer.ctx;
+        
+        // --- ズーム空間（ワールド）での描画 ---
+        ctx.save();
+        const waterY = renderer.h * renderer.waterLevel;
+        ctx.translate(renderer.w / 2, waterY);
+        ctx.scale(renderer.zoom, renderer.zoom);
+        ctx.translate(-renderer.w / 2, -waterY);
+
         // 魚影の描画
         for (const e of this.activeFishEntities) {
             renderer.drawFish(e.fish, e.x, e.y, e.scale, true, e.facingLeft);
         }
 
-        // 釣り竿とフック
+        // ファイト中は対象の魚を実体で描画
+        if (this.state === 'fighting' && this.hitTarget) {
+            const e = this.hitTarget;
+            const shakeX = Math.sin(renderer.time * 12) * 4;
+            const shakeY = Math.cos(renderer.time * 8) * 3;
+            renderer.drawFish(e.fish, e.x + shakeX, e.y + shakeY, e.scale * 1.2, false, e.facingLeft);
+        }
+
+        // ヒット時のエフェクト
+        if (this.state === 'hit') {
+            const alpha = Math.sin(renderer.time * 10) * 0.5 + 0.5;
+            renderer.drawText('⚡ HIT! ⚡', this.hookX, this.hookY - 40, 28, `rgba(255, 107, 53, ${alpha})`);
+        }
+        
+        ctx.restore();
+        // --- ここまでワールド空間 ---
+
+        // 釣り竿とフック（スクリーン空間）
         if (this.state === 'casting') {
             // パワーゲージ表示
             const barW = 200;
             const barH = 12;
             const barX = renderer.w / 2 - barW / 2;
             const barY = renderer.h * 0.85;
-            const ctx = renderer.ctx;
             ctx.save();
             ctx.fillStyle = 'rgba(0,0,0,0.5)';
             ctx.fillRect(barX, barY, barW, barH);
@@ -542,21 +587,9 @@ class FishingSystem {
         if (this.state === 'waiting' || this.state === 'hit' || this.state === 'fighting') {
             const tension = this.state === 'fighting' ? 0.5 + Math.sin(renderer.time * 5) * 0.3 : 0;
             const rodColor = (game.equippedRod || RODS[0]).color;
-            renderer.drawRod(this.rodTipX, this.rodTipY, this.hookX, this.hookY, tension, rodColor);
-        }
-
-        // ファイト中は対象の魚を実体で描画
-        if (this.state === 'fighting' && this.hitTarget) {
-            const e = this.hitTarget;
-            const shakeX = Math.sin(renderer.time * 12) * 4;
-            const shakeY = Math.cos(renderer.time * 8) * 3;
-            renderer.drawFish(e.fish, e.x + shakeX, e.y + shakeY, e.scale * 1.2, false, e.facingLeft);
-        }
-
-        // ヒット時のエフェクト
-        if (this.state === 'hit') {
-            const alpha = Math.sin(renderer.time * 10) * 0.5 + 0.5;
-            renderer.drawText('⚡ HIT! ⚡', this.hookX, this.hookY - 40, 28, `rgba(255, 107, 53, ${alpha})`);
+            // 座標をスクリーン空間に変換して竿を描画
+            const screenHook = renderer.getScreenPos(this.hookX, this.hookY);
+            renderer.drawRod(this.rodTipX, this.rodTipY, screenHook.x, screenHook.y, tension, rodColor);
         }
     }
 }

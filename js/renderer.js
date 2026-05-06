@@ -15,6 +15,8 @@ class Renderer {
         this.waterLevel = 0.35; // 画面上から35%が水面
         this.currentSpot = null;
         this.particles = [];
+        this.zoom = 1.0;
+        this.targetZoom = 1.0;
     }
 
     init() {
@@ -34,6 +36,14 @@ class Renderer {
 
     setSpot(spot) {
         this.currentSpot = spot;
+    }
+
+    getScreenPos(x, y) {
+        const waterY = this.h * this.waterLevel;
+        return {
+            x: this.w / 2 + (x - this.w / 2) * this.zoom,
+            y: waterY + (y - waterY) * this.zoom
+        };
     }
 
     /* ---- 気泡の生成 ---- */
@@ -109,14 +119,23 @@ class Renderer {
         ctx.clearRect(0, 0, w, h);
 
         const waterY = h * this.waterLevel;
+        this.zoom += (this.targetZoom - this.zoom) * 0.05;
+
+        ctx.save();
+        ctx.translate(w / 2, waterY);
+        ctx.scale(this.zoom, this.zoom);
+        ctx.translate(-w / 2, -waterY);
 
         this.drawSky(waterY);
         this.drawWater(waterY);
         this.drawLightRays(waterY);
         this.drawBubbles(waterY);
         this.drawWaterSurface(waterY);
-        this.drawDock();
         this.drawParticles();
+        
+        ctx.restore();
+
+        this.drawDock();
     }
 
     /* ---- 空 ---- */
