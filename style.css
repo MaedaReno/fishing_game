@@ -81,18 +81,16 @@ html, body {
 .screen {
     position: absolute;
     inset: 0;
-    display: flex;
+    display: none;
     justify-content: center;
     align-items: center;
     opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.6s ease, visibility 0.6s ease;
     pointer-events: none;
 }
 
 .screen.active {
+    display: flex;
     opacity: 1;
-    visibility: visible;
     pointer-events: auto;
 }
 
@@ -317,6 +315,7 @@ html, body {
     text-shadow: 0 2px 20px rgba(0, 0, 0, 0.8);
     animation: pulse 2s ease-in-out infinite;
     white-space: nowrap;
+    pointer-events: none;
 }
 
 .btn-corner {

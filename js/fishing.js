@@ -363,13 +363,14 @@ class FishingSystem {
             const dx = this.hookTargetX - this.hookX;
             const dy = this.hookTargetY - this.hookY;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 5) {
+            if (dist < 15) {
                 this.hookLanded = true;
                 this.hookX = this.hookTargetX;
                 this.hookY = this.hookTargetY;
+                renderer.addSplash(this.hookX, renderer.h * renderer.waterLevel, 5);
             } else {
-                this.hookX += dx * 0.08;
-                this.hookY += dy * 0.08;
+                this.hookX += dx * 0.15;
+                this.hookY += dy * 0.15;
             }
             return;
         }
@@ -391,8 +392,8 @@ class FishingSystem {
 
             if (entity.interested) {
                 entity.approachTimer += dt;
-                entity.x += (this.hookX - entity.x) * 0.01;
-                entity.y += (this.hookY - entity.y) * 0.005;
+                entity.x += (this.hookX - entity.x) * 0.03;
+                entity.y += (this.hookY - entity.y) * 0.02;
                 entity.facingLeft = entity.x > this.hookX;
 
                 if (dist < 30 && entity.approachTimer > 1.0) {
@@ -527,65 +528,30 @@ class FishingSystem {
         const zoneRight = this.fightZonePos + this.fightZoneWidth / 2;
         const inZone = this.fightCursorPos >= zoneLeft && this.fightCursorPos <= zoneRight;
 
-        const fillRate = (60 / (diff * diff + 0.5)) * fillMod;
-        const drainRate = (5 * diff * diff) * drainMod;
-
-        if (inZone) {
-            this.fightGauge = Math.min(100, this.fightGauge + fillRate * dt);
-            this.escapeTimer = Math.max(0, this.escapeTimer - dt * 0.5);
-        } else {
-            this.fightGauge = Math.max(0, this.fightGauge - drainRate * dt);
-        }
-
-        // ゲージが0のまま継続すると魚が逃走
-        if (this.fightGauge <= 0) {
-            this.escapeTimer += dt;
-        } else {
-            this.escapeTimer = Math.max(0, this.escapeTimer - dt * 0.3);
-        }
+        this._updateGaugeAndEscape(dt, inZone);
 
         // UI更新
-        document.getElementById('fight-gauge-fill').style.width = this.fightGauge + '%';
         const zoneEl = document.getElementById('fight-zone');
         zoneEl.style.left = zoneLeft + '%';
         zoneEl.style.width = this.fightZoneWidth + '%';
         document.getElementById('fight-cursor').style.left = this.fightCursorPos + '%';
 
-        // ゲージが変わるときの色変化
-        const fillEl = document.getElementById('fight-gauge-fill');
-        if (this.fightGauge > 80) {
-            fillEl.style.background = 'linear-gradient(90deg, #64ffda, #69f0ae, #ffd700)';
-        } else if (this.fightGauge > 50) {
-            fillEl.style.background = 'linear-gradient(90deg, #00e5ff, #64ffda, #69f0ae)';
-        } else {
-            fillEl.style.background = '';
-        }
-
-        // 逃走判定
-        if (this.escapeTimer >= this.escapeThreshold) {
-            this._fishEscaped('魚に逃げられた！');
-            return;
-        }
-
-        // 逃走警告の表示
-        const escapeRatio = this.escapeTimer / this.escapeThreshold;
+        // ヒント表示の更新
+        const escapeTimeMod = game.learnedSkills.reduce((acc, s) => acc + (s.effect && s.effect.escapeTimeMod ? s.effect.escapeTimeMod : 0), 0);
+        const limit = 2.0 + escapeTimeMod;
+        const escapeRatio = this.fightEscapeTimer / limit;
         const hintEl = document.querySelector('.fight-hint');
         if (escapeRatio > 0.5) {
-            hintEl.textContent = `⚠️ 魚が暴れている！ (${Math.ceil(this.escapeThreshold - this.escapeTimer)}秒)`;
+            hintEl.textContent = `⚠️ 魚が暴れている！ (${Math.ceil(limit - this.fightEscapeTimer)}秒)`;
             hintEl.style.color = escapeRatio > 0.8 ? '#ff5252' : '#ff9800';
         } else {
             hintEl.textContent = '← → キーまたはマウスでバーを操作';
             hintEl.style.color = '';
         }
-
-        // 成功
-        if (this.fightGauge >= 100) {
-            this._fishCaught();
-        }
     }
 
     /* =========== 釣果 =========== */
-    _fishCaught() {
+    _catchFish() {
         this.fightActive = false;
         this.state = 'caught';
         document.getElementById('fight-ui').classList.add('hidden');

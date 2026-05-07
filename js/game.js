@@ -256,8 +256,8 @@ const game = {
         
         if (type === 'rods') {
             RODS.forEach(rod => {
-                const owned = this.ownedRods.find(r => r.id === rod.id);
-                const equipped = this.equippedRod.id === rod.id;
+                const owned = this.ownedRods ? this.ownedRods.find(r => r.id === rod.id) : (rod.cost === 0);
+                const equipped = this.equippedRod && this.equippedRod.id === rod.id;
                 const item = document.createElement('div');
                 item.className = 'shop-item' + (owned && !equipped ? ' owned' : '');
                 
@@ -291,7 +291,7 @@ const game = {
                         this._buildShop('rods');
                     });
                 }
-                list.appendChild(item);
+                grid.appendChild(item);
             });
         } else if (type === 'skills') {
             SKILLS.forEach(skill => {
